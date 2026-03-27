@@ -1,0 +1,70 @@
+{
+  "manifest_version": "1.0",
+  "graph_id": "openshell_worker_demo_v1",
+  "job_name": "openshell-worker-demo",
+  "entrypoints": ["shell_worker"],
+  "initial_inputs": {
+    "shell_worker": [
+      {
+        "request_id": "demo-quick-001",
+        "label": "quick-signal",
+        "text": "BEAM orchestrates workers while OpenShell isolates execution."
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "node_id": "shell_worker",
+      "agent_type": "sandbox_worker",
+      "role": "root_coordinator",
+      "config": {
+        "name_prefix": "shell-worker",
+        "from": "base",
+        "workdir": "/sandbox/job",
+        "command": "TEXT=\"$(python - <<'PY'\nimport json\nimport os\nfrom pathlib import Path\npayload = json.loads(Path(os.environ['MN_INPUT_FILE']).read_text())\nprint(payload['text'])\nPY\n)\"\nWORD_COUNT=\"$(printf '%s\\n' \"$TEXT\" | wc -w | tr -d ' ')\"\nCHAR_COUNT=\"$(printf '%s' \"$TEXT\" | wc -c | tr -d ' ')\"\nexport TEXT WORD_COUNT CHAR_COUNT\npython - <<'PY'\nimport json\nimport os\nprint(json.dumps({'text': os.environ['TEXT'], 'word_count': int(os.environ['WORD_COUNT']), 'char_count': int(os.environ['CHAR_COUNT'])}))\nPY",
+        "output_message_type": "shell_metrics",
+        "no_keep": true,
+        "no_auto_providers": true,
+        "tty": false
+      }
+    },
+    {
+      "node_id": "python_worker",
+      "agent_type": "sandbox_worker",
+      "config": {
+        "name_prefix": "python-worker",
+        "from": "base",
+        "workdir": "/sandbox/job",
+        "command": "python - <<'PY'\nimport json\nimport os\nfrom pathlib import Path\npayload = json.loads(Path(os.environ['MN_INPUT_FILE']).read_text())\nshell_metrics = json.loads(payload['sandbox']['stdout'])\nsource = payload['input']\nresult = {\n    'request_id': source['request_id'],\n    'headline': f\"{source['label']}: {shell_metrics['word_count']} words, {shell_metrics['char_count']} chars\",\n    'explanation': 'BEAM orchestrated the flow and OpenShell executed the worker commands in isolated sandboxes.',\n    'text_preview': shell_metrics['text'][:40]\n}\nprint(json.dumps(result))\nPY",
+        "output_message_type": "python_report",
+        "no_keep": true,
+        "no_auto_providers": true,
+        "tty": false
+      }
+    },
+    {
+      "node_id": "result_sink",
+      "agent_type": "collector",
+      "config": {
+        "complete_on_message": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "shell_to_python",
+      "from_node": "shell_worker",
+      "to_node": "python_worker",
+      "message_type": "shell_metrics"
+    },
+    {
+      "edge_id": "python_to_sink",
+      "from_node": "python_worker",
+      "to_node": "result_sink",
+      "message_type": "python_report"
+    }
+  ],
+  "policies": {
+    "recovery_mode": "cluster_recover"
+  }
+}

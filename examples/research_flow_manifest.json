@@ -1,0 +1,51 @@
+{
+  "manifest_version": "1.0",
+  "graph_id": "research_flow_v1",
+  "job_name": "market-analysis",
+  "entrypoints": ["planner"],
+  "initial_inputs": {
+    "planner": [
+      {
+        "topic": "electric vehicle charging adoption in New England",
+        "text": "Collect a short research summary."
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "node_id": "planner",
+      "agent_type": "planner",
+      "role": "root_coordinator"
+    },
+    {
+      "node_id": "retriever",
+      "agent_type": "relay",
+      "role": "researcher"
+    },
+    {
+      "node_id": "reviewer",
+      "agent_type": "collector",
+      "role": "result_sink",
+      "config": {
+        "complete_on_message": true
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "planner_to_retriever",
+      "from_node": "planner",
+      "to_node": "retriever",
+      "message_type": "research_request"
+    },
+    {
+      "edge_id": "retriever_to_reviewer",
+      "from_node": "retriever",
+      "to_node": "reviewer",
+      "message_type": "research_request"
+    }
+  ],
+  "policies": {
+    "recovery_mode": "local_restart"
+  }
+}

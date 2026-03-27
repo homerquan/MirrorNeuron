@@ -57,6 +57,12 @@ fabric.properties
 .DS_Store
 *.class
 *.log
+_build/
+deps/
+/.elixir_ls/
+var/
+/mirror_neuron
+/demo/openshell_pipeline/generated/
 
 /target/**
 /project/target/**/*
