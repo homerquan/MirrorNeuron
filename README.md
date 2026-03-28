@@ -28,7 +28,7 @@ MirrorNeuron is not trying to be a general-purpose batch scheduler. It is design
 ## Quickstart
 
 ```bash
-cd /Volumes/1TB/Personal_projects/MirrorNeuron
+cd MirrorNeuron
 mix deps.get
 mix test
 mix escript.build
