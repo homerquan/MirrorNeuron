@@ -193,7 +193,7 @@ else
   SUBMIT_JSON_FILE="$(mktemp /tmp/mirror_neuron_stream_submit.XXXXXX.json)"
   trap 'rm -f "$SUBMIT_JSON_FILE"' EXIT
 
-  time "${RUNNER[@]}" run "$BUNDLE_PATH" --json --no-await >"$SUBMIT_JSON_FILE"
+  "${RUNNER[@]}" run "$BUNDLE_PATH" --json --no-await >"$SUBMIT_JSON_FILE"
 
   JOB_ID="$(
     python3 - "$SUBMIT_JSON_FILE" <<'PY'
@@ -205,7 +205,20 @@ raw = Path(sys.argv[1]).read_text().strip()
 if not raw:
     raise SystemExit("submission did not return JSON")
 
-print(json.loads(raw)["job_id"])
+decoder = json.JSONDecoder()
+
+for index, character in enumerate(raw):
+    if character != "{":
+        continue
+    try:
+        payload, end_index = decoder.raw_decode(raw[index:])
+    except json.JSONDecodeError:
+        continue
+    if "job_id" in payload:
+        print(payload["job_id"])
+        raise SystemExit(0)
+
+raise SystemExit("could not decode job id from submission output")
 PY
   )"
 
