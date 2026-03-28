@@ -119,19 +119,23 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
           row.tick == 0 and row.population == 0 and row.band == "unknown"
         end)
 
+    observed_rows = observed_region_rows(events)
+
     region_rows =
       if final_fallback? and (job["status"] || "") in ["completed", "failed", "cancelled"] do
         final_region_rows(job)
       else
         bootstrap_rows = bootstrap_region_rows(agents, events)
 
-        Enum.map(live_region_rows, fn row ->
+        live_region_rows
+        |> Enum.map(fn row ->
           if row.tick == 0 and row.population == 0 and row.band == "unknown" do
             Enum.find(bootstrap_rows, row, &(&1.id == row.id))
           else
             row
           end
         end)
+        |> merge_observed_rows(observed_rows)
       end
 
     max_tick = Enum.max([0 | Enum.map(region_rows, & &1.tick)])
@@ -478,6 +482,68 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     |> Enum.take(-6)
   end
 
+  defp observed_region_rows(events) do
+    events
+    |> Enum.filter(fn event -> (event["type"] || "") == "region_tick_processed" end)
+    |> Enum.reduce(%{}, fn event, acc ->
+      payload = event["payload"] || %{}
+      region_id = payload["region_id"]
+
+      if is_binary(region_id) do
+        row = %{
+          id: region_id,
+          node: short_node(payload["assigned_node"]),
+          tick: payload["tick"] || 0,
+          population: payload["population"] || 0,
+          food: as_float(payload["food"]),
+          food_capacity: max(as_float(payload["food_capacity"]), 1.0),
+          births: payload["births"] || 0,
+          deaths: payload["deaths"] || 0,
+          migrants_in: payload["arrivals"] || 0,
+          migrants_out: payload["migrants_out"] || 0,
+          band: payload["resource_band"] || "unknown",
+          history_tail: [],
+          top_lineages: []
+        }
+
+        case Map.get(acc, region_id) do
+          nil -> Map.put(acc, region_id, row)
+          existing when existing.tick <= row.tick -> Map.put(acc, region_id, row)
+          _existing -> acc
+        end
+      else
+        acc
+      end
+    end)
+  end
+
+  defp merge_observed_rows(rows, observed_rows) do
+    rows
+    |> Enum.map(fn row ->
+      case Map.get(observed_rows, row.id) do
+        nil -> row
+        observed when observed.tick > row.tick -> merge_row(row, observed)
+        _observed -> row
+      end
+    end)
+  end
+
+  defp merge_row(row, observed) do
+    %{
+      row
+      | node: if(observed.node == "-", do: row.node, else: observed.node),
+        tick: observed.tick,
+        population: observed.population,
+        food: observed.food,
+        food_capacity: observed.food_capacity,
+        births: observed.births,
+        deaths: observed.deaths,
+        migrants_in: observed.migrants_in,
+        migrants_out: observed.migrants_out,
+        band: if(observed.band == "unknown", do: row.band, else: observed.band)
+    }
+  end
+
   defp final_region_rows(job) do
     output = get_in(job, ["result", "output"]) || %{}
     history = output["region_history_tail"] || %{}
@@ -525,7 +591,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
   defp format_regions_present(value) when is_list(value), do: Enum.join(value, ",")
   defp format_regions_present(value), do: to_string(value)
 
-  defp format_sim_time(total_seconds) when is_integer(total_seconds) and total_seconds > 0 do
+  defp format_sim_time(total_seconds) when is_integer(total_seconds) and total_seconds >= 0 do
     "#{total_seconds}y"
   end
 

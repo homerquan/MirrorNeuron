@@ -26,6 +26,8 @@ Each run introduces randomness in:
 
 Animals compete for limited food, age, die, reproduce, and migrate between neighboring regions. At the end, the run reports the top 10 DNA profiles by survival and lineage strength.
 
+The `--animals` flag is the initial population for the run. It does not mean “up to” or “range.”
+
 ## Why this example is BEAM-native
 
 This example intentionally keeps simulation state in BEAM agent state instead of sandbox files.
@@ -154,6 +156,12 @@ bash examples/ecosystem_simulation/run_simulation_e2e.sh \
 
 The local runner rebuilds `./mirror_neuron`, generates the bundle, validates it, runs the simulation, and writes a `result.json` next to the generated manifest.
 
+Important:
+
+- `duration-seconds` is simulated world time, not wall-clock runtime
+- in the ecosystem watcher, simulated time is rendered as years (`y`)
+- total ticks are calculated as `duration-seconds / tick-seconds`
+
 For a more watchable run, use:
 
 ```bash
@@ -176,10 +184,20 @@ There is also a terminal-only watcher for this example:
 It renders:
 
 - job status and tick progress
+- simulated time as `?y`
 - per-region population and food bars
 - numeric food level (`current/capacity`) and a short `up` / `down` / `flat` food trend
 - a rolling DNA leaderboard
 - recent events
+
+The watcher combines two sources:
+
+- live agent state from `inspect_agents`
+- lightweight observation events emitted by region agents on every tick
+
+That observation path makes the dashboard feel more responsive during long runs because it does not need to wait only on slower state polling.
+
+The initial region rows are hydrated from `region_initialized` events, so the opening screen shows the real randomized starting food distribution instead of empty placeholder rows.
 
 Example on a long-lived local runtime:
 
@@ -208,6 +226,15 @@ You can also inspect a completed run once:
 ```bash
 mix run examples/ecosystem_simulation/watch_ascii.exs -- <job_id> --once --no-clear
 ```
+
+### Reading the dashboard
+
+- `Tick` is simulation tick progress, not wall-clock seconds
+- `Sim Time` is simulated years derived from `tick * tick-seconds`
+- `Food` bar is normalized against each region’s own `food_capacity`
+- `LEVEL` shows `current_food/current_capacity`
+- `TREND` is based on the recent region history tail
+- `BOX` shows the runtime node currently associated with that region when available
 
 ## Two-box cluster run
 
@@ -267,6 +294,7 @@ The final result includes:
 - births and deaths
 - migration counts
 - an ASCII world population chart across the full run
+- a `population_timeline` that starts at tick `0`, so the chart reflects the true initial population
 - per-region resource profiles
 - short region history tails
 - top 10 DNA profiles
@@ -279,6 +307,7 @@ The ecosystem uses density-dependent balancing so long runs stay bounded:
 - higher scarcity reduces breeding further
 - death pressure increases with crowding, scarcity, and age
 - mutation remains low by default so successful DNA lines evolve gradually instead of thrashing
+- starting food is randomized per region as a fraction of local food capacity, then changes dynamically as regions consume and regenerate resources
 
 That keeps the simulation interesting over hundreds of ticks without letting population growth overwhelm the cluster.
 
