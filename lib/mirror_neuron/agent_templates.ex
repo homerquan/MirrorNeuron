@@ -18,7 +18,8 @@ defmodule MirrorNeuron.AgentTemplates do
     "router" => ["generic", "map"],
     "executor" => ["generic", "stream", "map", "reduce", "batch"],
     "aggregator" => ["generic", "reduce"],
-    "sensor" => ["generic"]
+    "sensor" => ["generic"],
+    "module" => ["generic", "stream", "map", "reduce", "batch"]
   }
 
   def default_type, do: "generic"

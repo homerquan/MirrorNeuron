@@ -64,6 +64,9 @@ var/
 /mirror_neuron
 /demo/openshell_pipeline/generated/
 /examples/prime_sweep_scale/generated/
+/examples/ecosystem_simulation/generated/
+__pycache__/
+*.pyc
 
 /target/**
 /project/target/**/*

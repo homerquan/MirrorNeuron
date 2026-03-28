@@ -249,13 +249,16 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
   end
 
   defp persist_snapshot(state) do
+    inspected_state = inspected_local_state(state.module, state.local_state)
+    encoded_state = encoded_local_state(state.module, state.local_state)
+
     snapshot = %{
       agent_id: state.node.node_id,
       node_id: state.node.node_id,
       agent_type: state.node.agent_type,
       type: Map.get(state.node, :type, "generic"),
       role: state.node.role,
-      current_state: stringify_local_state(state.local_state),
+      current_state: inspected_state,
       mailbox_depth: state.mailbox_depth,
       processed_messages: state.processed_messages,
       assigned_node: to_string(Node.self()),
@@ -267,7 +270,7 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
         paused: state.paused?,
         outbound_edges: Enum.map(state.outbound_edges, & &1.to_node),
         heartbeat_interval_ms: state.heartbeat_interval_ms,
-        recovery_state: encode_local_state(state.local_state)
+        recovery_state: encoded_state
       }
     }
 
@@ -345,7 +348,7 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
        when is_map(metadata) do
     case decode_local_state(Map.get(metadata, "recovery_state")) do
       {:ok, local_state} ->
-        {:ok, local_state}
+        restore_local_state(module, local_state)
 
       :error ->
         module.init(node)
@@ -425,6 +428,11 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
     |> Base.encode64()
   end
 
+  defp encoded_local_state(module, local_state) do
+    module.snapshot_state(local_state)
+    |> encode_local_state()
+  end
+
   defp decode_local_state(nil), do: :error
 
   defp decode_local_state(encoded) when is_binary(encoded) do
@@ -447,6 +455,18 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
       class: "control",
       correlation_id: unique_id()
     )
+  end
+
+  defp inspected_local_state(module, local_state) do
+    local_state
+    |> module.inspect_state()
+    |> stringify_local_state()
+  end
+
+  defp restore_local_state(module, snapshot) do
+    module.restore_state(snapshot)
+  rescue
+    error -> {:error, error}
   end
 
   defp unique_id do

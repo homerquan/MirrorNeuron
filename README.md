@@ -24,6 +24,7 @@ MirrorNeuron is not trying to be a general-purpose batch scheduler. It is design
   - large fan-out scale tests
   - streaming telemetry and anomaly detection
   - LLM codegen/review loops
+  - large-scale ecosystem simulation
 
 ## Quickstart
 
@@ -61,6 +62,7 @@ Recommended reading order:
 8. [API Reference](docs/api.md)
 9. [Troubleshooting](docs/troubleshooting.md)
 10. [Development Guide](docs/development.md)
+11. [Simulation Example](docs/simulation_example.md)
 
 ## Core ideas
 
@@ -106,6 +108,7 @@ job-folder/
 - [examples/prime_sweep_scale](examples/prime_sweep_scale)
 - [examples/streaming_peak_demo](examples/streaming_peak_demo)
 - [examples/llm_codegen_review](examples/llm_codegen_review)
+- [examples/ecosystem_simulation](examples/ecosystem_simulation)
 
 For details:
 

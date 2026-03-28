@@ -136,6 +136,42 @@ bash scripts/test_cluster_streaming_e2e.sh \
   --box2-ip 192.168.4.35
 ```
 
+## 6. Ecosystem simulation
+
+Path:
+
+- [examples/ecosystem_simulation](../examples/ecosystem_simulation)
+
+Purpose:
+
+- stress the runtime with a large stateful simulation
+- model many animals competing for limited regional resources
+- exercise cross-region messaging, migration, breeding, and summary ranking
+- demonstrate a BEAM-native sharded world model
+- randomize world resource allocation and initial DNA per run
+- report the top 10 DNA profiles at the end
+
+Key files:
+
+- [generate_bundle.py](../examples/ecosystem_simulation/generate_bundle.py)
+- [run_simulation_e2e.sh](../examples/ecosystem_simulation/run_simulation_e2e.sh)
+- [summarize_result.py](../examples/ecosystem_simulation/summarize_result.py)
+- [Simulation Example Guide](simulation_example.md)
+
+Run locally:
+
+```bash
+bash examples/ecosystem_simulation/run_simulation_e2e.sh
+```
+
+Run on cluster:
+
+```bash
+bash scripts/test_cluster_ecosystem_sim_e2e.sh \
+  --box1-ip 192.168.4.29 \
+  --box2-ip 192.168.4.35
+```
+
 ## Choosing the right example
 
 Use this order:
@@ -145,6 +181,7 @@ Use this order:
 3. `prime_sweep_scale`
 4. `streaming_peak_demo`
 5. `llm_codegen_review`
+6. `ecosystem_simulation`
 
 That progression moves from:
 
@@ -153,3 +190,4 @@ That progression moves from:
 - scale and cluster placement
 - runtime streaming and incremental consumption
 - richer multi-agent collaboration
+- large-scale stateful simulation under cluster load

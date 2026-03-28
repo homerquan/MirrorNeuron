@@ -136,6 +136,15 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
 
     extra_env_exports = build_extra_env_exports(config)
 
+    cleanup_remote_dir = cleanup_remote_dir?(config)
+
+    cleanup_step =
+      if cleanup_remote_dir do
+        "rm -rf #{shell_escape(remote_dir)} >/dev/null 2>&1 || true"
+      else
+        ":"
+      end
+
     wrapper = """
     set +e
     export MIRROR_NEURON_INPUT_FILE=#{shell_escape(input_file)}
@@ -146,6 +155,8 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
     export MIRROR_NEURON_BODY_CONTENT_ENCODING=#{shell_escape(Message.content_encoding(message))}
     export MIRROR_NEURON_AGENT_TYPE=#{shell_escape(to_string(Keyword.get(opts, :agent_type, "")))}
     export MIRROR_NEURON_AGENT_TEMPLATE=#{shell_escape(Keyword.get(opts, :template_type, "generic"))}
+    export MIRROR_NEURON_JOB_ID=#{shell_escape(Keyword.get(opts, :job_id, ""))}
+    export MIRROR_NEURON_AGENT_ID=#{shell_escape(Keyword.get(opts, :agent_id, ""))}
     export MIRROR_NEURON_WORKDIR=#{shell_escape(workdir)}
     #{extra_env_exports}
     mkdir -p #{shell_escape(remote_dir)}
@@ -168,7 +179,7 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
     print(json.dumps(result))
     print("#{@result_end}")
     PY
-    rm -rf #{shell_escape(remote_dir)} >/dev/null 2>&1 || true
+    #{cleanup_step}
     exit "$status"
     """
 
@@ -490,7 +501,12 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
     agent = sanitize_path_segment(Keyword.get(opts, :agent_id, "agent"))
     attempt = Keyword.get(opts, :attempt, 1)
     unique = Integer.to_string(System.unique_integer([:positive]))
-    Path.join([root, "runs", agent, "a#{attempt}-#{unique}"])
+
+    if persistent_workspace?(config) do
+      Path.join([root, "agents", agent])
+    else
+      Path.join([root, "runs", agent, "a#{attempt}-#{unique}"])
+    end
   end
 
   defp resolve_workdir(config, remote_dir) do
@@ -511,6 +527,12 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
   end
 
   defp reuse_shared_sandbox?(config), do: Map.get(config, "reuse_shared_sandbox", true)
+
+  defp persistent_workspace?(config), do: Map.get(config, "persistent_workspace", false)
+
+  defp cleanup_remote_dir?(config) do
+    Map.get(config, "cleanup_remote_dir", not persistent_workspace?(config))
+  end
 
   defp sandbox_cli(config) do
     Map.get(config, "sandbox_cli", System.get_env("MIRROR_NEURON_OPENSHELL_BIN", "openshell"))

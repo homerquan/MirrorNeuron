@@ -5,7 +5,8 @@ defmodule MirrorNeuron.AgentRegistry do
     "router" => Builtins.Router,
     "executor" => Builtins.Executor,
     "aggregator" => Builtins.Aggregator,
-    "sensor" => Builtins.Sensor
+    "sensor" => Builtins.Sensor,
+    "module" => Builtins.Module
   }
 
   @compatibility_aliases %{

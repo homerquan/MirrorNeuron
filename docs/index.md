@@ -21,6 +21,7 @@ Use this directory as the main documentation entry point.
 ## Examples and APIs
 
 - [Examples Guide](examples.md)
+- [Simulation Example](simulation_example.md)
 - [API Reference](api.md)
 
 ## Contributing and extending

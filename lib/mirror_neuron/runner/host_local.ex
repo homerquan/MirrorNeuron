@@ -301,6 +301,8 @@ defmodule MirrorNeuron.Runner.HostLocal do
       "MIRROR_NEURON_BODY_CONTENT_ENCODING" => Message.content_encoding(message),
       "MIRROR_NEURON_AGENT_TYPE" => to_string(Keyword.get(opts, :agent_type, "")),
       "MIRROR_NEURON_AGENT_TEMPLATE" => Keyword.get(opts, :template_type, "generic"),
+      "MIRROR_NEURON_JOB_ID" => to_string(Keyword.get(opts, :job_id, "")),
+      "MIRROR_NEURON_AGENT_ID" => to_string(Keyword.get(opts, :agent_id, "")),
       "MIRROR_NEURON_WORKDIR" => workdir
     }
   end
