@@ -17,8 +17,7 @@ MirrorNeuron is not trying to be a general-purpose batch scheduler. It is design
 - bounded execution capacity through executor leases and pools
 - shared OpenShell sandbox reuse per job per runtime node
 - terminal-first tooling with:
-  - [mirror_neuron](mirror_neuron)
-  - `./mirror_neuron monitor`
+  - `mirror_neuron`
 - example bundles for:
   - local workflows
   - shell and Python execution
