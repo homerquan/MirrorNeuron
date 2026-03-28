@@ -24,7 +24,8 @@ defmodule MirrorNeuron.MixProject do
       {:jason, "~> 1.4"},
       {:libcluster, "~> 3.5"},
       {:horde, "~> 0.10.0"},
-      {:redix, "~> 1.5"}
+      {:redix, "~> 1.5"},
+      {:owl, "~> 0.13"}
     ]
   end
 end
