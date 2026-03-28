@@ -168,6 +168,40 @@ wait_for_cluster() {
   return 1
 }
 
+force_cluster_connect() {
+  echo "Forcing runtime nodes to connect..."
+
+  local deadline now
+  deadline=$((SECONDS + 20))
+
+  while true; do
+    if ERL_AFLAGS='-kernel inet_dist_listen_min 4374 inet_dist_listen_max 4374' \
+      elixir --name "bootstrap_${$}@${BOX1_IP}" --cookie "$COOKIE" -e "
+        mn1 = :\"mn1@${BOX1_IP}\"
+        mn2 = :\"mn2@${BOX2_IP}\"
+        Node.connect(mn2)
+        :rpc.call(mn1, Node, :connect, [mn2])
+        :timer.sleep(500)
+        ok =
+          case :rpc.call(mn1, Node, :list, []) do
+            nodes when is_list(nodes) -> mn2 in nodes
+            _ -> false
+          end
+        System.halt(if(ok, do: 0, else: 1))
+      " >/dev/null 2>&1; then
+      return
+    fi
+
+    now=$SECONDS
+    if [ "$now" -ge "$deadline" ]; then
+      echo "Could not establish runtime-to-runtime connection." >&2
+      return 1
+    fi
+
+    sleep 1
+  done
+}
+
 cleanup() {
   if [ "$KEEP_CLUSTER_UP" = "1" ]; then
     return
@@ -191,6 +225,7 @@ LOCAL_PID="$(start_local_runtime)"
 echo "$LOCAL_PID"
 REMOTE_PID="$(start_remote_runtime)"
 echo "$REMOTE_PID"
+force_cluster_connect
 wait_for_cluster
 
 echo "Running cluster ecosystem simulation..."

@@ -8,9 +8,9 @@ ANIMALS="2000"
 REGIONS="16"
 DURATION_SECONDS="300"
 TICK_SECONDS="5"
-MAX_FOOD="420"
-FOOD_REGEN_PER_TICK="72"
-MAX_REGION_POPULATION="220"
+MAX_FOOD="1000"
+FOOD_REGEN_PER_TICK="800"
+MAX_REGION_POPULATION="400"
 MIGRATION_RATE="0.035"
 MUTATION_RATE="0.05"
 TICK_DELAY_MS=""
@@ -33,6 +33,7 @@ REMOTE_PATH_PREFIX='export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/b
 LOCAL_CLUSTER_LOG="/tmp/mirror_neuron_mn1_ecosim_oneshot.log"
 REMOTE_CLUSTER_LOG="/tmp/mirror_neuron_mn2_ecosim_oneshot.log"
 STARTED_CLUSTER="0"
+REDIS_CONTAINER_NAME="${MIRROR_NEURON_REDIS_CONTAINER_NAME:-mirror-neuron-redis}"
 
 usage() {
   cat <<'EOF'
@@ -128,6 +129,55 @@ stop_runtime_remote() {
   fi
 }
 
+ensure_local_docker() {
+  if docker info >/dev/null 2>&1; then
+    return
+  fi
+
+  if command -v open >/dev/null 2>&1; then
+    echo "Starting Docker Desktop on box 1..."
+    open -a Docker >/dev/null 2>&1 || true
+  fi
+
+  local attempt
+  for attempt in $(seq 1 60); do
+    if docker info >/dev/null 2>&1; then
+      return
+    fi
+    sleep 2
+  done
+
+  echo "Docker is not ready on box 1. Verify Docker Desktop is running." >&2
+  return 1
+}
+
+ensure_local_redis() {
+  ensure_local_docker
+
+  if docker inspect "$REDIS_CONTAINER_NAME" >/dev/null 2>&1; then
+    local running
+    running="$(docker inspect -f '{{.State.Running}}' "$REDIS_CONTAINER_NAME" 2>/dev/null || true)"
+    if [ "$running" != "true" ]; then
+      echo "Starting Redis container on box 1..."
+      docker start "$REDIS_CONTAINER_NAME" >/dev/null
+    fi
+  else
+    echo "Starting Redis container on box 1..."
+    docker run -d --name "$REDIS_CONTAINER_NAME" -p 6379:6379 redis:7 >/dev/null
+  fi
+
+  local attempt
+  for attempt in $(seq 1 30); do
+    if docker exec "$REDIS_CONTAINER_NAME" redis-cli ping >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+
+  echo "Redis is not ready on box 1." >&2
+  return 1
+}
+
 cleanup_cluster_bootstrap() {
   if [ "$STARTED_CLUSTER" != "1" ] || [ "$KEEP_CLUSTER_UP" = "1" ]; then
     return
@@ -137,6 +187,10 @@ cleanup_cluster_bootstrap() {
   stop_runtime_local
   stop_runtime_remote
 }
+
+if [ -n "$SELF_IP" ]; then
+  ensure_local_redis
+fi
 
 trap cleanup_cluster_bootstrap EXIT
 
@@ -186,6 +240,40 @@ wait_for_cluster() {
   return 1
 }
 
+force_cluster_connect() {
+  echo "Forcing runtime nodes to connect..."
+
+  local deadline now
+  deadline=$((SECONDS + 20))
+
+  while true; do
+    if ERL_AFLAGS='-kernel inet_dist_listen_min 4374 inet_dist_listen_max 4374' \
+      elixir --name "bootstrap_${$}@${BOX1_IP}" --cookie "$COOKIE" -e "
+        mn1 = :\"mn1@${BOX1_IP}\"
+        mn2 = :\"mn2@${BOX2_IP}\"
+        Node.connect(mn2)
+        :rpc.call(mn1, Node, :connect, [mn2])
+        :timer.sleep(500)
+        ok =
+          case :rpc.call(mn1, Node, :list, []) do
+            nodes when is_list(nodes) -> mn2 in nodes
+            _ -> false
+          end
+        System.halt(if(ok, do: 0, else: 1))
+      " >/dev/null 2>&1; then
+      return
+    fi
+
+    now=$SECONDS
+    if [ "$now" -ge "$deadline" ]; then
+      echo "Could not establish runtime-to-runtime connection." >&2
+      return 1
+    fi
+
+    sleep 1
+  done
+}
+
 bootstrap_cluster_if_needed() {
   if [ -z "$SELF_IP" ]; then
     return
@@ -203,6 +291,7 @@ bootstrap_cluster_if_needed() {
   fi
 
   echo "No healthy cluster detected. Auto-starting two-box runtime..."
+  ensure_local_redis
   echo "Syncing repo to box 2..."
   ssh "$BOX2_IP" "mkdir -p \"$REMOTE_ROOT\""
   rsync -az --delete \
@@ -241,6 +330,7 @@ bootstrap_cluster_if_needed() {
   ssh "$BOX2_IP" "cd \"$REMOTE_ROOT\" && $REMOTE_PATH_PREFIX export ERL_AFLAGS='-kernel inet_dist_listen_min $DIST_PORT inet_dist_listen_max $DIST_PORT'; export MIRROR_NEURON_NODE_NAME='mn2@$BOX2_IP'; export MIRROR_NEURON_NODE_ROLE='runtime'; export MIRROR_NEURON_COOKIE='$COOKIE'; export MIRROR_NEURON_CLUSTER_NODES='mn1@$BOX1_IP,mn2@$BOX2_IP'; export MIRROR_NEURON_REDIS_URL='redis://$BOX1_IP:6379/0'; nohup ./mirror_neuron server >'$REMOTE_CLUSTER_LOG' 2>&1 </dev/null & echo \$!"
 
   STARTED_CLUSTER="1"
+  force_cluster_connect
   wait_for_cluster
 }
 
@@ -281,6 +371,7 @@ BUNDLE_PATH="$(python3 "$SCRIPT_DIR/generate_bundle.py" "${BUNDLE_ARGS[@]}")"
 RESULT_PATH="$BUNDLE_PATH/result.json"
 
 if [ -z "$SELF_IP" ]; then
+  ensure_local_redis
   echo "Building MirrorNeuron runtime..."
   (cd "$ROOT_DIR" && mix escript.build >/dev/null)
 else
@@ -392,7 +483,11 @@ run_ascii_watch() {
     watch_args+=("--box1-ip" "$BOX1_IP")
   fi
 
-  (cd "$ROOT_DIR" && mix run examples/ecosystem_simulation/watch_ascii.exs -- "${watch_args[@]}")
+  (
+    cd "$ROOT_DIR" &&
+      env MIRROR_NEURON_REDIS_URL="$REDIS_URL" \
+        mix run --no-start examples/ecosystem_simulation/watch_ascii.exs -- "${watch_args[@]}"
+  )
 }
 
 if [ -z "$SELF_IP" ]; then

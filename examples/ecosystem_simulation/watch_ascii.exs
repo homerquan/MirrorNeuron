@@ -60,6 +60,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
 
     if redis_url do
       System.put_env("MIRROR_NEURON_REDIS_URL", redis_url)
+      Application.put_env(:mirror_neuron, :redis_url, redis_url)
     end
 
     {:ok, _} = Application.ensure_all_started(:mirror_neuron)
@@ -139,9 +140,21 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
       end
 
     max_tick = Enum.max([0 | Enum.map(region_rows, & &1.tick)])
+    min_tick =
+      case region_rows do
+        [] -> 0
+        rows -> Enum.min(Enum.map(rows, & &1.tick))
+      end
     total_ticks = calc_total_ticks(world_config)
     simulated_time = calc_simulated_time(max_tick, world_config)
+    simulated_time_min = calc_simulated_time(min_tick, world_config)
     total_simulated_time = calc_total_simulated_time(world_config)
+    completed_regions =
+      if is_integer(total_ticks) and total_ticks > 0 do
+        Enum.count(region_rows, &(&1.tick >= total_ticks))
+      else
+        0
+      end
     total_population = Enum.sum(Enum.map(region_rows, & &1.population))
     total_food = Enum.sum(Enum.map(region_rows, & &1.food))
     total_births = Enum.sum(Enum.map(region_rows, & &1.births))
@@ -160,10 +173,13 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     render_state = %{
       job_id: job_id,
       status: job["status"] || "unknown",
+      min_tick: min_tick,
       max_tick: max_tick,
       total_ticks: total_ticks,
+      simulated_time_min: simulated_time_min,
       simulated_time: simulated_time,
       total_simulated_time: total_simulated_time,
+      completed_regions: completed_regions,
       region_rows: region_rows,
       active_nodes: active_nodes,
       total_population: total_population,
@@ -205,14 +221,13 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
           "\n",
           status_line("Status", state.status),
           "\n",
-          status_line("Tick", "#{state.max_tick}/#{state.total_ticks || "?"}"),
+          status_line("Tick", format_tick_progress(state)),
           "\n",
-          status_line(
-            "Sim Time",
-            "#{format_sim_time(state.simulated_time)}/#{format_sim_time(state.total_simulated_time)}"
-          ),
+          status_line("Sim Time", format_sim_time_progress(state)),
           "\n",
           status_line("Regions", Integer.to_string(length(state.region_rows))),
+          "\n",
+          status_line("Done", format_done_regions(state)),
           "\n",
           status_line("Nodes", Enum.join(state.active_nodes, ",")),
           maybe_seed_line(state.seed)
@@ -360,6 +375,34 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
 
   defp maybe_seed_line(nil), do: []
   defp maybe_seed_line(seed), do: ["\n", status_line("Seed", seed)]
+
+  defp format_tick_progress(state) do
+    total = state.total_ticks || "?"
+
+    cond do
+      state.min_tick == state.max_tick ->
+        "#{state.max_tick}/#{total}"
+
+      true ->
+        "#{state.min_tick}-#{state.max_tick}/#{total}"
+    end
+  end
+
+  defp format_sim_time_progress(state) do
+    total = format_sim_time(state.total_simulated_time)
+
+    cond do
+      state.simulated_time_min == state.simulated_time ->
+        "#{format_sim_time(state.simulated_time)}/#{total}"
+
+      true ->
+        "#{format_sim_time(state.simulated_time_min)}-#{format_sim_time(state.simulated_time)}/#{total}"
+    end
+  end
+
+  defp format_done_regions(state) do
+    "#{state.completed_regions}/#{length(state.region_rows)}"
+  end
 
   defp region_row(agent) do
     state = extract_agent_state(agent)
