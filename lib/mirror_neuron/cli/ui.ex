@@ -262,6 +262,7 @@ defmodule MirrorNeuron.CLI.UI do
       "mirror_neuron server",
       "mirror_neuron validate <job-folder>",
       "mirror_neuron run <job-folder> [--json] [--timeout <ms>] [--no-await]",
+      "mirror_neuron monitor [--json] [--running-only] [--limit <n>]",
       "mirror_neuron inspect job <job_id>",
       "mirror_neuron inspect agents <job_id>",
       "mirror_neuron inspect nodes",

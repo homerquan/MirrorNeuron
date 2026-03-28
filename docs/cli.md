@@ -3,7 +3,7 @@
 MirrorNeuron currently ships two terminal tools:
 
 - [mirror_neuron](../mirror_neuron)
-- [mirror_neuron_monitor](../mirror_neuron_monitor)
+- `./mirror_neuron monitor`
 
 ## `mirror_neuron`
 
@@ -118,12 +118,12 @@ Useful for:
 - sensor-style workflows
 - operator intervention
 
-## `mirror_neuron_monitor`
+## `mirror_neuron monitor`
 
 ### Start the monitor
 
 ```bash
-./mirror_neuron_monitor
+./mirror_neuron monitor
 ```
 
 It shows:
@@ -142,7 +142,7 @@ Open a job by:
 ### JSON mode
 
 ```bash
-./mirror_neuron_monitor --json
+./mirror_neuron monitor --json
 ```
 
 This is useful for:
@@ -154,13 +154,13 @@ This is useful for:
 ### Running-only filter
 
 ```bash
-./mirror_neuron_monitor --running-only
+./mirror_neuron monitor --running-only
 ```
 
 ### Cluster mode
 
 ```bash
-./mirror_neuron_monitor \
+./mirror_neuron monitor \
   --box1-ip 192.168.4.29 \
   --box2-ip 192.168.4.35 \
   --self-ip 192.168.4.29

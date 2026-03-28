@@ -18,7 +18,7 @@ MirrorNeuron is not trying to be a general-purpose batch scheduler. It is design
 - shared OpenShell sandbox reuse per job per runtime node
 - terminal-first tooling with:
   - [mirror_neuron](mirror_neuron)
-  - [mirror_neuron_monitor](mirror_neuron_monitor)
+  - `./mirror_neuron monitor`
 - example bundles for:
   - local workflows
   - shell and Python execution
@@ -35,7 +35,7 @@ mix escript.build
 
 ./mirror_neuron validate examples/research_flow
 ./mirror_neuron run examples/research_flow
-./mirror_neuron_monitor
+./mirror_neuron monitor
 ```
 
 For full setup instructions:
@@ -115,7 +115,7 @@ For details:
 ./mirror_neuron inspect nodes
 ./mirror_neuron inspect job <job_id>
 ./mirror_neuron events <job_id>
-./mirror_neuron_monitor
+./mirror_neuron monitor
 ```
 
 For full command reference:

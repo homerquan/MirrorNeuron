@@ -307,19 +307,19 @@ Pub/Sub channel:
 
 This event channel is written today but not yet consumed by the terminal monitor. It is the best candidate for future live dashboards.
 
-## Terminal tools
+## Terminal CLI
 
-### Main CLI
+### Main command
 
 Built escript:
 
 - [mirror_neuron](../mirror_neuron)
 
-### Monitor CLI
+### Monitor subcommand
 
-Wrapper command:
+Use:
 
-- [mirror_neuron_monitor](../mirror_neuron_monitor)
+- `./mirror_neuron monitor`
 
 It currently uses:
 

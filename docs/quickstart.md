@@ -44,7 +44,7 @@ On a single machine this usually shows one node.
 ## Use the terminal monitor
 
 ```bash
-./mirror_neuron_monitor
+./mirror_neuron monitor
 ```
 
 This opens a terminal dashboard where you can:

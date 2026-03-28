@@ -116,7 +116,7 @@ bash scripts/test_cluster_llm_codegen_e2e.sh \
 ## Monitor a cluster
 
 ```bash
-./mirror_neuron_monitor \
+./mirror_neuron monitor \
   --box1-ip 192.168.4.29 \
   --box2-ip 192.168.4.35 \
   --self-ip 192.168.4.29
