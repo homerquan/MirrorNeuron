@@ -142,6 +142,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.RegionAgent do
       summary = %{
         agent_id: next_state.region_id,
         region_id: next_state.region_id,
+        assigned_node: Atom.to_string(node()),
         simulation_seed: next_state.simulation_seed,
         ticks_completed: next_state.tick,
         population: length(next_state.animals),

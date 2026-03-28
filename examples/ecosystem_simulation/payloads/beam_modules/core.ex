@@ -151,7 +151,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
     regenerated = state.food_regen_per_tick * flux
     state = %{state | food: round2(min(state.food_capacity, state.food + regenerated))}
     state = forage_pass(state, config, tick)
-    {state, dead} = survivors_and_dead(state)
+    {state, dead} = survivors_and_dead(state, config, tick)
     {state, births} = breed_animals(state, config, tick)
     {state, migration_payloads, outgoing} = choose_migrants(state, config, tick)
 
@@ -162,16 +162,15 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
       |> Map.put(:migrants_out, state.migrants_out + outgoing)
       |> Map.put(:tick, tick)
       |> Map.update!(:history, fn history ->
-        history ++
-          [
-            %{
-              tick: tick,
-              population: length(state.animals),
-              food: round2(state.food),
-              births: births,
-              deaths: dead
-            }
-          ]
+        append_history_tail(history, %{
+          tick: tick,
+          population: length(state.animals),
+          food: round2(state.food),
+          food_capacity: round2(state.food_capacity),
+          food_ratio: round2(state.food / max(state.food_capacity, 1.0)),
+          births: births,
+          deaths: dead
+        })
       end)
 
     {state, arrivals, births, dead, migration_payloads, outgoing}
@@ -218,6 +217,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
       migrants_in: state.migrants_in,
       migrants_out: state.migrants_out,
       resource_band: get_in(state, [:resource_profile, :band]) || "uninitialized",
+      history_tail: Enum.take(state.history, -3),
       top_lineages_preview:
         state.animals
         |> lineage_snapshot()
@@ -288,6 +288,8 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
         Enum.into(region_summaries, %{}, fn summary ->
           {summary.region_id, Enum.take(summary.history_tail, -3)}
         end),
+      region_nodes:
+        Enum.into(region_summaries, %{}, fn summary -> {summary.region_id, summary.assigned_node} end),
       top_10_dna: ranked
     }
   end
@@ -396,12 +398,28 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
     %{state | animals: Enum.reverse(animals), food: round2(max(food, 0.0))}
   end
 
-  defp survivors_and_dead(state) do
+  defp survivors_and_dead(state, config, tick) do
+    carrying_capacity = carrying_capacity(state, config)
+    density = length(state.animals) / max(carrying_capacity, 1)
+    scarcity = max(0.0, 1.0 - state.food / max(state.food_capacity, 1.0))
+
     {survivors, dead} =
       Enum.reduce(state.animals, {[], 0}, fn animal, {acc, dead} ->
         max_age = 120 + animal.dna.longevity * 220
+        age_ratio = clamp(animal.age / max(max_age, 1), 0.0, 1.0)
 
-        if animal.energy <= 0 or animal.age >= max_age do
+        death_probability =
+          0.0015 +
+            0.02 * density +
+            0.18 * :math.pow(max(density - 0.92, 0.0), 2) +
+            0.12 * :math.pow(scarcity, 2) +
+            0.04 * :math.pow(age_ratio, 2) +
+            0.015 * max(animal.dna.metabolism - 1.0, 0.0) -
+            0.02 * max(animal.dna.longevity - 1.0, 0.0)
+            |> clamp(0.0, 0.92)
+
+        if animal.energy <= 0 or animal.age >= max_age or
+             jitter(state.simulation_seed, animal.id, tick + 4_000, 0.0, 1.0) < death_probability do
           {acc, dead + 1}
         else
           {[animal | acc], dead}
@@ -412,15 +430,21 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
   end
 
   defp breed_animals(state, config, tick) do
-    max_population = trunc(config.max_region_population * state.resource_profile.capacity_multiplier)
+    max_population = carrying_capacity(state, config)
+    density = length(state.animals) / max(max_population, 1)
+    scarcity = max(0.0, 1.0 - state.food / max(state.food_capacity, 1.0))
+    breed_factor = max(0.0, 1.0 - :math.pow(density, 2))
+    resource_factor = max(0.0, 1.0 - :math.pow(scarcity, 1.6))
+    energy_threshold = 92.0 + density * 18.0 + scarcity * 20.0
 
     eligible =
       state.animals
       |> Enum.sort_by(& &1.energy, :desc)
       |> Enum.filter(fn animal ->
-        animal.age >= 20 and animal.energy >= 92.0 and
+        animal.age >= 20 and animal.energy >= energy_threshold and
           jitter(state.simulation_seed, animal.id, tick + 1_000, 0.0, 1.0) <=
-            animal.dna.breed * (0.16 + state.resource_profile.shelter_bonus)
+            animal.dna.breed * (0.16 + state.resource_profile.shelter_bonus) * breed_factor *
+              resource_factor
       end)
 
     {newborns, next_serial} = breed_pairs(eligible, [], state.next_serial, state, max_population, tick)
@@ -511,6 +535,16 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
         {%{state | animals: survivors}, payloads, length(movers)}
       end
     end
+  end
+
+  defp carrying_capacity(state, config) do
+    max(1, trunc(config.max_region_population * state.resource_profile.capacity_multiplier))
+  end
+
+  defp append_history_tail(history, entry, limit \\ 24) do
+    history
+    |> Kernel.++([entry])
+    |> Enum.take(-limit)
   end
 
   defp rand_between(seed, index, salt, low, high) do

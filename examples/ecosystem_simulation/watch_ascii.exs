@@ -148,14 +148,15 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     IO.puts("")
     IO.puts("Regions")
     IO.puts("------")
-    IO.puts("ID         BOX   TICK  POP   FOOD                BIRTH  DEATH  IN   OUT  BAND")
+    IO.puts("ID         BOX   TICK  POP   FOOD                LEVEL        TREND BIRTH  DEATH  IN   OUT  BAND")
 
     Enum.each(region_rows, fn row ->
       food_ratio = row.food / row.food_capacity
 
       IO.puts(
         "#{pad(row.id, 10)} #{pad(row.node, 5)} #{pad(row.tick, 5)} #{pad(row.population, 5)} " <>
-          "#{bar(food_ratio, 18)} #{pad(row.births, 6)} #{pad(row.deaths, 6)} " <>
+          "#{bar(food_ratio, 18)} #{pad(food_level(row), 12)} #{pad(food_trend(row), 5)} " <>
+          "#{pad(row.births, 6)} #{pad(row.deaths, 6)} " <>
           "#{pad(row.migrants_in, 4)} #{pad(row.migrants_out, 4)}  #{row.band}"
       )
     end)
@@ -176,7 +177,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
 
       IO.puts(
         "#{pad(index, 4)} #{pad(truncate_key(dna_key), 36)} #{pad(alive, 6)} " <>
-          "#{pad(fmt(avg_energy), 6)} #{pad(generation_max, 4)}  #{regions_present}"
+          "#{pad(fmt(avg_energy), 6)} #{pad(generation_max, 4)}  #{format_regions_present(regions_present)}"
       )
     end)
 
@@ -215,6 +216,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
       migrants_in: state["migrants_in"] || 0,
       migrants_out: state["migrants_out"] || 0,
       band: state["resource_band"] || "unknown",
+      history_tail: state["history_tail"] || [],
       top_lineages: state["top_lineages_preview"] || []
     }
   end
@@ -275,6 +277,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     output = get_in(job, ["result", "output"]) || %{}
     history = output["region_history_tail"] || %{}
     profiles = output["resource_profiles"] || %{}
+    region_nodes = output["region_nodes"] || %{}
 
     history
     |> Enum.sort_by(fn {region_id, _entries} -> region_id end)
@@ -284,16 +287,17 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
 
       %{
         id: region_id,
-        node: "-",
+        node: short_node(Map.get(region_nodes, region_id)),
         tick: last["tick"] || 0,
         population: last["population"] || 0,
         food: as_float(last["food"]),
-        food_capacity: 1.0,
+        food_capacity: max(as_float(last["food_capacity"]), 1.0),
         births: last["births"] || 0,
         deaths: last["deaths"] || 0,
         migrants_in: 0,
         migrants_out: 0,
         band: profile["band"] || "unknown",
+        history_tail: entries,
         top_lineages: []
       }
     end)
@@ -313,19 +317,44 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
   defp format_value(value) when is_list(value), do: "[#{length(value)}]"
   defp format_value(value), do: inspect(value)
 
+  defp format_regions_present(value) when is_list(value), do: Enum.join(value, ",")
+  defp format_regions_present(value), do: to_string(value)
+
   defp short_node(nil), do: "-"
 
   defp short_node(node) do
-    node
-    |> to_string()
-    |> String.split("@")
-    |> hd()
+    case node |> to_string() |> String.split("@") |> hd() do
+      "nonode" -> "local"
+      value -> value
+    end
   end
 
   defp bar(ratio, width) do
     ratio = ratio |> max(0.0) |> min(1.0)
     filled = trunc(Float.round(ratio * width))
     "[" <> String.duplicate("#", filled) <> String.duplicate(".", width - filled) <> "]"
+  end
+
+  defp food_level(row) do
+    "#{fmt(row.food)}/#{fmt(row.food_capacity)}"
+  end
+
+  defp food_trend(row) do
+    case Enum.take(row.history_tail || [], -2) do
+      [prev, curr] ->
+        prev_food = as_float(prev["food"] || prev[:food])
+        curr_food = as_float(curr["food"] || curr[:food])
+        delta = curr_food - prev_food
+
+        cond do
+          delta > 0.5 -> "up"
+          delta < -0.5 -> "down"
+          true -> "flat"
+        end
+
+      _ ->
+        "-"
+    end
   end
 
   defp pad(value, width), do: String.pad_trailing(to_string(value), width)

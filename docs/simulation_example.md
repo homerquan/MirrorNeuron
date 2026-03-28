@@ -164,6 +164,7 @@ It renders:
 
 - job status and tick progress
 - per-region population and food bars
+- numeric food level (`current/capacity`) and a short `up` / `down` / `flat` food trend
 - a rolling DNA leaderboard
 - recent events
 
@@ -255,6 +256,17 @@ The final result includes:
 - per-region resource profiles
 - short region history tails
 - top 10 DNA profiles
+
+## Long-run balance
+
+The ecosystem uses density-dependent balancing so long runs stay bounded:
+
+- breeding chance drops as a region approaches and exceeds its carrying capacity
+- higher scarcity reduces breeding further
+- death pressure increases with crowding, scarcity, and age
+- mutation remains low by default so successful DNA lines evolve gradually instead of thrashing
+
+That keeps the simulation interesting over hundreds of ticks without letting population growth overwhelm the cluster.
 
 That makes it useful both as:
 
