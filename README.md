@@ -178,3 +178,7 @@ For the current reliability model and known limits:
 If you are working on the runtime itself, start here:
 
 - [Development Guide](docs/development.md)
+
+## License
+
+MirrorNeuron is available under the [MIT License](LICENSE).
