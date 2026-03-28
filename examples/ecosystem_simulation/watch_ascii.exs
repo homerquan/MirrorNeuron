@@ -236,7 +236,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
       ),
       "\n",
       UI.box(
-        "World Summary",
+        "World Summary (Not Accurate Due To ES)",
         [
           status_line("Population", Integer.to_string(state.total_population)),
           "\n",

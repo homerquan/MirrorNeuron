@@ -58,6 +58,8 @@ def render_population_chart(timeline: list[dict], width: int = 60, height: int =
             [
                 "World Population Chart",
                 "----------------------",
+                "y-axis: population",
+                "x-axis: time (ticks)",
                 "(population remained at zero)",
             ]
         )
@@ -77,8 +79,10 @@ def render_population_chart(timeline: list[dict], width: int = 60, height: int =
             "World Population Chart",
             "----------------------",
             f"start={start_population} peak={peak_population} end={end_population}",
+            "y-axis: population",
             *grid,
             axis,
+            "x-axis: time (ticks)",
             tick_line,
         ]
     )
