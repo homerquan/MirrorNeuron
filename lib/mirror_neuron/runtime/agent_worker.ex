@@ -28,9 +28,7 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
   end
 
   def child_spec({job_id, node, outbound_edges, inbound_edges, coordinator, runtime_context}) do
-    child_spec(
-      {job_id, node, outbound_edges, inbound_edges, coordinator, runtime_context, nil}
-    )
+    child_spec({job_id, node, outbound_edges, inbound_edges, coordinator, runtime_context, nil})
   end
 
   def start_link(
@@ -170,7 +168,8 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
       inbound_edges: state.inbound_edges,
       bundle_root: state.runtime_context[:bundle_root],
       manifest_path: state.runtime_context[:manifest_path],
-      payloads_path: state.runtime_context[:payloads_path]
+      payloads_path: state.runtime_context[:payloads_path],
+      template_type: Map.get(state.node, :type, "generic")
     }
 
     send(
@@ -254,6 +253,7 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
       agent_id: state.node.node_id,
       node_id: state.node.node_id,
       agent_type: state.node.agent_type,
+      type: Map.get(state.node, :type, "generic"),
       role: state.node.role,
       current_state: stringify_local_state(state.local_state),
       mailbox_depth: state.mailbox_depth,
@@ -366,7 +366,8 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
         inbound_edges: state.inbound_edges,
         bundle_root: state.runtime_context[:bundle_root],
         manifest_path: state.runtime_context[:manifest_path],
-        payloads_path: state.runtime_context[:payloads_path]
+        payloads_path: state.runtime_context[:payloads_path],
+        template_type: Map.get(state.node, :type, "generic")
       }
 
       case state.module.recover(state.local_state, context) do
@@ -398,7 +399,9 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
     |> Kernel.++(Map.get(snapshot || %{}, "pending_messages", []))
   end
 
-  defp recovered_processed_messages(%{"processed_messages" => count}) when is_integer(count), do: count
+  defp recovered_processed_messages(%{"processed_messages" => count}) when is_integer(count),
+    do: count
+
   defp recovered_processed_messages(_snapshot), do: 0
 
   defp recovered_paused?(%{"metadata" => %{"paused" => paused}}), do: paused == true

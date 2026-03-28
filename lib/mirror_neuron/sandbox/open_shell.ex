@@ -144,6 +144,8 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
     export MIRROR_NEURON_BODY_FILE=#{shell_escape(body_file)}
     export MIRROR_NEURON_BODY_CONTENT_TYPE=#{shell_escape(Message.content_type(message))}
     export MIRROR_NEURON_BODY_CONTENT_ENCODING=#{shell_escape(Message.content_encoding(message))}
+    export MIRROR_NEURON_AGENT_TYPE=#{shell_escape(to_string(Keyword.get(opts, :agent_type, "")))}
+    export MIRROR_NEURON_AGENT_TEMPLATE=#{shell_escape(Keyword.get(opts, :template_type, "generic"))}
     export MIRROR_NEURON_WORKDIR=#{shell_escape(workdir)}
     #{extra_env_exports}
     mkdir -p #{shell_escape(remote_dir)}
@@ -345,6 +347,8 @@ defmodule MirrorNeuron.Sandbox.OpenShell do
                %{
                  job_id: Keyword.get(opts, :job_id),
                  agent_id: Keyword.get(opts, :agent_id),
+                 agent_type: Keyword.get(opts, :agent_type),
+                 template_type: Keyword.get(opts, :template_type, "generic"),
                  agent_state: Keyword.get(opts, :agent_state, %{}),
                  timestamp: MirrorNeuron.Runtime.timestamp()
                },

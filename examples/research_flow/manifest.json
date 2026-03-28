@@ -15,6 +15,7 @@
     {
       "node_id": "ingress",
       "agent_type": "router",
+      "type": "map",
       "role": "root_coordinator",
       "config": {
         "emit_type": "research_request"
@@ -23,11 +24,13 @@
     {
       "node_id": "retriever",
       "agent_type": "router",
+      "type": "map",
       "role": "researcher"
     },
     {
       "node_id": "reviewer",
       "agent_type": "aggregator",
+      "type": "reduce",
       "role": "result_sink",
       "config": {
         "complete_on_message": true

@@ -99,7 +99,15 @@ defmodule MirrorNeuron.RuntimeTest do
       case CrashOnceCounter.next_invocation() do
         1 ->
           Process.sleep(10_000)
-          {:ok, %{"sandbox_name" => "crash-once", "exit_code" => 0, "stdout" => "{}", "stderr" => "", "logs" => ""}}
+
+          {:ok,
+           %{
+             "sandbox_name" => "crash-once",
+             "exit_code" => 0,
+             "stdout" => "{}",
+             "stderr" => "",
+             "logs" => ""
+           }}
 
         invocation ->
           {:ok,

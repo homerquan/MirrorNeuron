@@ -68,6 +68,7 @@
     {
       "node_id": "codegen_round_1",
       "agent_type": "executor",
+      "type": "generic",
       "role": "root_coordinator",
       "config": {
         "from": "base",
@@ -102,6 +103,7 @@
     {
       "node_id": "review_round_1",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "from": "base",
         "upload_path": "llm_worker",
@@ -135,6 +137,7 @@
     {
       "node_id": "codegen_round_2",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "from": "base",
         "upload_path": "llm_worker",
@@ -168,6 +171,7 @@
     {
       "node_id": "review_round_2",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "from": "base",
         "upload_path": "llm_worker",
@@ -201,6 +205,7 @@
     {
       "node_id": "codegen_round_3",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "from": "base",
         "upload_path": "llm_worker",
@@ -234,6 +239,7 @@
     {
       "node_id": "validator",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "from": "base",
         "upload_path": "llm_worker",

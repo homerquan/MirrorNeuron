@@ -16,6 +16,7 @@
     {
       "node_id": "shell_worker",
       "agent_type": "executor",
+      "type": "generic",
       "role": "root_coordinator",
       "config": {
         "name_prefix": "shell-worker",
@@ -35,6 +36,7 @@
     {
       "node_id": "python_worker",
       "agent_type": "executor",
+      "type": "generic",
       "config": {
         "name_prefix": "python-worker",
         "from": "base",
@@ -53,6 +55,7 @@
     {
       "node_id": "result_sink",
       "agent_type": "aggregator",
+      "type": "reduce",
       "config": {
         "complete_on_message": true
       }

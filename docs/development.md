@@ -68,7 +68,35 @@ The best starting points are:
 
 - [agent.ex](../lib/mirror_neuron/agent.ex)
 - [agent_template.ex](../lib/mirror_neuron/agent_template.ex)
-- [agent_templates/accumulator.ex](../lib/mirror_neuron/agent_templates/accumulator.ex)
+- [agent_templates.ex](../lib/mirror_neuron/agent_templates.ex)
+- [agent_templates/generic.ex](../lib/mirror_neuron/agent_templates/generic.ex)
+- [agent_templates/stream.ex](../lib/mirror_neuron/agent_templates/stream.ex)
+- [agent_templates/map.ex](../lib/mirror_neuron/agent_templates/map.ex)
+- [agent_templates/reduce.ex](../lib/mirror_neuron/agent_templates/reduce.ex)
+- [agent_templates/batch.ex](../lib/mirror_neuron/agent_templates/batch.ex)
+
+## Agent templates
+
+Node manifests now use:
+
+- `agent_type`
+  Runtime primitive such as `router`, `executor`, `aggregator`, or `sensor`
+- `type`
+  Behavioral template such as `generic`, `stream`, `map`, `reduce`, or `batch`
+
+If `type` is omitted, MirrorNeuron defaults it to `generic`.
+
+Templates are intentionally lighter-weight than built-ins:
+
+- built-ins define runtime mechanics
+- templates define reusable behavior contracts for payload authors
+
+Current compatibility rules:
+
+- `router`: `generic`, `map`
+- `executor`: `generic`, `stream`, `map`, `reduce`, `batch`
+- `aggregator`: `generic`, `reduce`
+- `sensor`: `generic`
 
 For operational tooling, prefer building on:
 

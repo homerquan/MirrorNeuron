@@ -40,12 +40,6 @@ Run:
 ./mirror_neuron run examples/openshell_worker_demo --json
 ```
 
-Helper:
-
-```bash
-bash demo/openshell_pipeline/run_demo.sh
-```
-
 ## 3. Prime sweep scale benchmark
 
 Path:

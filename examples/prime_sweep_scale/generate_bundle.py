@@ -44,12 +44,14 @@ def build_manifest(
         {
             "node_id": "dispatcher",
             "agent_type": "router",
+            "type": "map",
             "role": "root_coordinator",
             "config": {"emit_type": "prime_chunk_request"},
         },
         {
             "node_id": "collector",
             "agent_type": "aggregator",
+            "type": "reduce",
             "config": {
                 "complete_after": actual_workers,
                 "output_message_type": "prime_chunk_collection",
@@ -58,6 +60,7 @@ def build_manifest(
         {
             "node_id": "summarizer",
             "agent_type": "executor",
+            "type": "reduce",
             "config": {
                 "name_prefix": "prime-summary",
                 "upload_path": "summary_worker",
@@ -80,6 +83,7 @@ def build_manifest(
             {
                 "node_id": worker_id,
                 "agent_type": "executor",
+                "type": "map",
                 "config": {
                     "name_prefix": worker_id.replace("_", "-"),
                     "from": "base",

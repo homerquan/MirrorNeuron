@@ -114,6 +114,7 @@ Typical agent fields:
 {
   "agent_id": "prime_worker_0001",
   "agent_type": "executor",
+  "type": "map",
   "assigned_node": "mn1@192.168.4.183",
   "processed_messages": 1,
   "mailbox_depth": 0,
@@ -257,6 +258,7 @@ Each agent entry includes:
 
 - `agent_id`
 - `agent_type`
+- `type`
 - `assigned_node`
 - `status`
 - `running?`

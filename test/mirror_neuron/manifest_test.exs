@@ -27,6 +27,75 @@ defmodule MirrorNeuron.ManifestTest do
     assert {:ok, normalized} = Manifest.load(manifest)
     assert normalized.graph_id == "simple"
     assert normalized.entrypoints == ["router"]
+    assert Enum.find(normalized.nodes, &(&1.node_id == "router")).type == "generic"
+  end
+
+  test "accepts supported template types" do
+    manifest = %{
+      "manifest_version" => "1.0",
+      "graph_id" => "streaming",
+      "entrypoints" => ["source"],
+      "nodes" => [
+        %{
+          "node_id" => "source",
+          "agent_type" => "executor",
+          "type" => "stream",
+          "role" => "root"
+        },
+        %{"node_id" => "sink", "agent_type" => "aggregator", "type" => "reduce"}
+      ],
+      "edges" => [
+        %{"from_node" => "source", "to_node" => "sink", "message_type" => "telemetry_chunk"}
+      ],
+      "policies" => %{"recovery_mode" => "local_restart"}
+    }
+
+    assert {:ok, normalized} = Manifest.load(manifest)
+    assert Enum.find(normalized.nodes, &(&1.node_id == "source")).type == "stream"
+    assert Enum.find(normalized.nodes, &(&1.node_id == "sink")).type == "reduce"
+  end
+
+  test "rejects unsupported template types" do
+    manifest = %{
+      "manifest_version" => "1.0",
+      "graph_id" => "invalid-template",
+      "entrypoints" => ["worker"],
+      "nodes" => [
+        %{
+          "node_id" => "worker",
+          "agent_type" => "executor",
+          "type" => "mystery",
+          "role" => "root"
+        }
+      ],
+      "edges" => [],
+      "policies" => %{"recovery_mode" => "local_restart"}
+    }
+
+    assert {:error, errors} = Manifest.load(manifest)
+    assert Enum.any?(errors, &String.contains?(&1, "unsupported template type"))
+  end
+
+  test "rejects incompatible template and agent_type combinations" do
+    manifest = %{
+      "manifest_version" => "1.0",
+      "graph_id" => "invalid-combo",
+      "entrypoints" => ["worker"],
+      "nodes" => [
+        %{
+          "node_id" => "worker",
+          "agent_type" => "aggregator",
+          "type" => "stream",
+          "role" => "root"
+        }
+      ],
+      "edges" => [],
+      "policies" => %{"recovery_mode" => "local_restart"}
+    }
+
+    assert {:error, errors} = Manifest.load(manifest)
+    assert Enum.any?(errors, &String.contains?(&1, "template type"))
+    assert Enum.any?(errors, &String.contains?(&1, "agent_type"))
   end
 
   test "rejects duplicate nodes and missing edge references" do

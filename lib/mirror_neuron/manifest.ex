@@ -11,7 +11,7 @@ defmodule MirrorNeuron.Manifest do
     :initial_inputs
   ]
 
-  alias MirrorNeuron.AgentRegistry
+  alias MirrorNeuron.{AgentRegistry, AgentTemplates}
 
   def load(%__MODULE__{} = manifest), do: {:ok, manifest}
 
@@ -84,6 +84,18 @@ defmodule MirrorNeuron.Manifest do
       |> Enum.reject(&AgentRegistry.supported_type?(&1.agent_type))
       |> Enum.map(&"unsupported agent_type #{inspect(&1.agent_type)} for node #{&1.node_id}")
 
+    unsupported_templates =
+      manifest.nodes
+      |> Enum.reject(&AgentTemplates.supported_type?(&1.type))
+      |> Enum.map(&"unsupported template type #{inspect(&1.type)} for node #{&1.node_id}")
+
+    incompatible_templates =
+      manifest.nodes
+      |> Enum.reject(&AgentTemplates.supported_for_agent_type?(&1.type, &1.agent_type))
+      |> Enum.map(
+        &"template type #{inspect(&1.type)} is not supported for agent_type #{inspect(&1.agent_type)} on node #{&1.node_id}"
+      )
+
     empty_ids =
       manifest.nodes
       |> Enum.filter(&(is_nil(&1.node_id) or &1.node_id == ""))
@@ -92,6 +104,8 @@ defmodule MirrorNeuron.Manifest do
     errors
     |> add_errors(Enum.map(Enum.uniq(duplicates), &"duplicate node_id #{&1}"))
     |> add_errors(unsupported)
+    |> add_errors(unsupported_templates)
+    |> add_errors(incompatible_templates)
     |> add_errors(empty_ids)
   end
 
@@ -162,6 +176,7 @@ defmodule MirrorNeuron.Manifest do
     %{
       node_id: Map.get(raw, "node_id"),
       agent_type: Map.get(raw, "agent_type"),
+      type: AgentTemplates.canonical_type(Map.get(raw, "type")),
       role: Map.get(raw, "role"),
       config: Map.get(raw, "config", %{}),
       tool_bindings: Map.get(raw, "tool_bindings", []),

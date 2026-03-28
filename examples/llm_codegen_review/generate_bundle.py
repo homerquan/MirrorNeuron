@@ -70,6 +70,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "codegen_round_1",
             "agent_type": "executor",
+            "type": "generic",
             "role": "root_coordinator",
             "config": {
                 **llm_runner_config,
@@ -81,6 +82,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "review_round_1",
             "agent_type": "executor",
+            "type": "generic",
             "config": {
                 **llm_runner_config,
                 "name_prefix": "review-r1",
@@ -91,6 +93,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "codegen_round_2",
             "agent_type": "executor",
+            "type": "generic",
             "config": {
                 **llm_runner_config,
                 "name_prefix": "codegen-r2",
@@ -101,6 +104,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "review_round_2",
             "agent_type": "executor",
+            "type": "generic",
             "config": {
                 **llm_runner_config,
                 "name_prefix": "review-r2",
@@ -111,6 +115,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "codegen_round_3",
             "agent_type": "executor",
+            "type": "generic",
             "config": {
                 **llm_runner_config,
                 "name_prefix": "codegen-r3",
@@ -121,6 +126,7 @@ def build_manifest(model: str, max_attempts: int, retry_backoff_ms: int, task: d
         {
             "node_id": "validator",
             "agent_type": "executor",
+            "type": "generic",
             "config": {
                 **upload_config,
                 "name_prefix": "validator",

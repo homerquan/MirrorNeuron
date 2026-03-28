@@ -95,6 +95,8 @@ job-folder/
 ```
 
 - `manifest.json` defines nodes, edges, entrypoints, and policies
+  - `agent_type` selects the runtime primitive
+  - `type` selects the behavioral template and defaults to `generic`
 - `payloads/` contains code and files needed by worker execution
 
 ## Included examples

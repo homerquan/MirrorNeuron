@@ -195,6 +195,8 @@ defmodule MirrorNeuron.Builtins.Executor do
            attempt: attempt,
            job_id: context.job_id,
            agent_id: context.node.node_id,
+           agent_type: Map.get(context.node, :agent_type),
+           template_type: Map.get(context.node, :type, "generic"),
            agent_state: state.agent_state,
            bundle_root: context.bundle_root,
            manifest_path: context.manifest_path,
@@ -274,9 +276,14 @@ defmodule MirrorNeuron.Builtins.Executor do
       Map.has_key?(item, "body_base64") ->
         item["body_base64"] |> Base.decode64!()
 
-      Map.has_key?(item, "body") -> item["body"]
-      Map.has_key?(item, "payload") -> item["payload"]
-      true -> %{}
+      Map.has_key?(item, "body") ->
+        item["body"]
+
+      Map.has_key?(item, "payload") ->
+        item["payload"]
+
+      true ->
+        %{}
     end
   end
 

@@ -77,6 +77,8 @@ defmodule MirrorNeuron.Runner.HostLocal do
                %{
                  job_id: Keyword.get(opts, :job_id),
                  agent_id: Keyword.get(opts, :agent_id),
+                 agent_type: Keyword.get(opts, :agent_type),
+                 template_type: Keyword.get(opts, :template_type, "generic"),
                  agent_state: Keyword.get(opts, :agent_state, %{}),
                  timestamp: MirrorNeuron.Runtime.timestamp()
                },
@@ -145,7 +147,7 @@ defmodule MirrorNeuron.Runner.HostLocal do
     """
 
     env =
-      runtime_env(input_file, context_file, message_file, body_file, workdir, message)
+      runtime_env(input_file, context_file, message_file, body_file, workdir, message, opts)
       |> Map.merge(extra_env(config))
       |> Enum.map(fn {key, value} -> {key, value} end)
 
@@ -289,7 +291,7 @@ defmodule MirrorNeuron.Runner.HostLocal do
     end
   end
 
-  defp runtime_env(input_file, context_file, message_file, body_file, workdir, message) do
+  defp runtime_env(input_file, context_file, message_file, body_file, workdir, message, opts) do
     %{
       "MIRROR_NEURON_INPUT_FILE" => input_file,
       "MIRROR_NEURON_CONTEXT_FILE" => context_file,
@@ -297,6 +299,8 @@ defmodule MirrorNeuron.Runner.HostLocal do
       "MIRROR_NEURON_BODY_FILE" => body_file,
       "MIRROR_NEURON_BODY_CONTENT_TYPE" => Message.content_type(message),
       "MIRROR_NEURON_BODY_CONTENT_ENCODING" => Message.content_encoding(message),
+      "MIRROR_NEURON_AGENT_TYPE" => to_string(Keyword.get(opts, :agent_type, "")),
+      "MIRROR_NEURON_AGENT_TEMPLATE" => Keyword.get(opts, :template_type, "generic"),
       "MIRROR_NEURON_WORKDIR" => workdir
     }
   end

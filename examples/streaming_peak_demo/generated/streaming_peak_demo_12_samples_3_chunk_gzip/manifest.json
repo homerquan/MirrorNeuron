@@ -17,6 +17,7 @@
     {
       "node_id": "ingress",
       "agent_type": "router",
+      "type": "map",
       "role": "root_coordinator",
       "config": {
         "emit_type": "stream_start"
@@ -24,32 +25,52 @@
     },
     {
       "node_id": "telemetry_source",
-      "agent_type": "stream_source",
+      "agent_type": "executor",
+      "type": "stream",
       "role": "producer",
       "config": {
-        "sample_count": 12,
-        "chunk_size": 3,
-        "baseline": 24,
-        "jitter": 4,
-        "peak_height": 55,
-        "peak_positions": [
-          4,
-          8
+        "runner_module": "MirrorNeuron.Runner.HostLocal",
+        "upload_path": "stream_worker",
+        "upload_as": "stream_worker",
+        "workdir": "/sandbox/job/stream_worker",
+        "command": [
+          "python3",
+          "scripts/emit_telemetry_stream.py"
         ],
-        "content_encoding": "gzip",
-        "device_id": "sensor-alpha",
-        "output_message_type": "telemetry_chunk"
+        "output_message_type": null,
+        "environment": {
+          "SAMPLE_COUNT": "12",
+          "CHUNK_SIZE": "3",
+          "BASELINE": "24",
+          "JITTER": "4",
+          "PEAK_HEIGHT": "55",
+          "PEAK_POSITIONS": "4,8",
+          "DEVICE_ID": "sensor-alpha",
+          "STREAM_CONTENT_ENCODING": "gzip"
+        }
       }
     },
     {
       "node_id": "peak_detector",
-      "agent_type": "stream_peak_detector",
+      "agent_type": "executor",
+      "type": "stream",
       "role": "consumer",
       "config": {
-        "warmup_points": 5,
-        "window_size": 8,
-        "spike_multiplier": 2.4,
-        "min_spike_delta": 20.0
+        "runner_module": "MirrorNeuron.Runner.HostLocal",
+        "upload_path": "stream_worker",
+        "upload_as": "stream_worker",
+        "workdir": "/sandbox/job/stream_worker",
+        "command": [
+          "python3",
+          "scripts/detect_stream_peaks.py"
+        ],
+        "output_message_type": null,
+        "environment": {
+          "WARMUP_POINTS": "5",
+          "WINDOW_SIZE": "8",
+          "SPIKE_MULTIPLIER": "2.4",
+          "MIN_SPIKE_DELTA": "20.0"
+        }
       }
     }
   ],

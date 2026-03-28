@@ -39,12 +39,14 @@ def build_manifest(args: argparse.Namespace) -> dict:
             {
                 "node_id": "ingress",
                 "agent_type": "router",
+                "type": "map",
                 "role": "root_coordinator",
                 "config": {"emit_type": "stream_start"},
             },
             {
                 "node_id": "telemetry_source",
                 "agent_type": "executor",
+                "type": "stream",
                 "role": "producer",
                 "config": {
                     "runner_module": "MirrorNeuron.Runner.HostLocal",
@@ -68,6 +70,7 @@ def build_manifest(args: argparse.Namespace) -> dict:
             {
                 "node_id": "peak_detector",
                 "agent_type": "executor",
+                "type": "stream",
                 "role": "consumer",
                 "config": {
                     "runner_module": "MirrorNeuron.Runner.HostLocal",
