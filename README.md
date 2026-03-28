@@ -1,10 +1,23 @@
 # MirrorNeuron
+## Overview
 
-MirrorNeuron is a new Elixir/BEAM implementation of the old Scala/Akka multi-agent runtime in this repository.
+MirrorNeuron is an Elixir/BEAM runtime for orchestrating distributed workflows with multiple autonomous agents. It lets you define complex multi-step jobs as agent graphs, then execute them reliably with built-in support for persistence, clustering, and sandboxed execution.
 
-This version is aligned to the architecture in [SPEC.md](/Volumes/1TB/Personal_projects/MirrorNeuron/SPEC.md): job-bundle-driven runs, supervised agent workers, explicit message envelopes, Redis-backed persistence, and a CLI entrypoint.
+**Why use it?**
 
-Detailed architecture notes live in [docs/runtime-architecture.md](/Volumes/1TB/Personal_projects/MirrorNeuron/docs/runtime-architecture.md).
+- **Scale workflows, not just tasks**: Define logical agent networks of any size and let the runtime handle execution
+- **Explicit control flow**: Message routing, capacity limits, and execution queues are first-class concepts
+- **Built for reliability**: Redis-backed state, pause/resume, and replay-friendly event history
+- **Production-ready**: BEAM clustering, sandboxed code execution via OpenShell, and CLI tooling included
+- **Start simple**: Small primitive set (`router`, `executor`, `aggregator`, `sensor`) keeps the mental model lean
+
+**What it solves:**
+
+Instead of managing job orchestration through external workflow engines or ad-hoc scripting, MirrorNeuron keeps the control plane lightweight while scaling your agent logic independently. Separate concerns: logical workflows stay in BEAM, heavy execution happens in isolated sandboxes.
+
+---
+
+**Note:** This is a modern rewrite of [a legacy Scala/Akka implementation](https://github.com/homerquan/mirrorneuron_legacy_scala_actor) from earlier scalability work on distributed agent systems.
 
 ## What is included
 
