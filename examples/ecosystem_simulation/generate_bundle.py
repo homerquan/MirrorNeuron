@@ -18,6 +18,7 @@ def build_manifest(args: argparse.Namespace) -> dict:
         "max_region_population": args.max_region_population,
         "migration_rate": args.migration_rate,
         "mutation_rate": args.mutation_rate,
+        "tick_delay_ms": args.tick_delay_ms,
         "seed": args.seed,
         "local_top_k": args.local_top_k,
     }
@@ -158,6 +159,7 @@ def main() -> None:
     parser.add_argument("--max-region-population", type=int, default=220)
     parser.add_argument("--migration-rate", type=float, default=0.035)
     parser.add_argument("--mutation-rate", type=float, default=0.05)
+    parser.add_argument("--tick-delay-ms", type=int, default=0)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--local-top-k", type=int, default=20)
     parser.add_argument("--max-attempts", type=int, default=2)

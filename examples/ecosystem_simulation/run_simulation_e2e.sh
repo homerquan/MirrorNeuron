@@ -13,6 +13,7 @@ FOOD_REGEN_PER_TICK="72"
 MAX_REGION_POPULATION="220"
 MIGRATION_RATE="0.035"
 MUTATION_RATE="0.05"
+TICK_DELAY_MS=""
 SEED=""
 DRY_RUN="0"
 WATCH="0"
@@ -54,6 +55,7 @@ options:
       --max-region-population <n>  Soft population cap per region, defaults to 220
       --migration-rate <n>         Base migration rate, defaults to 0.035
       --mutation-rate <n>          DNA mutation rate, defaults to 0.05
+      --tick-delay-ms <n>         Real wall-clock delay per tick for watched demos
       --seed <n>                   Simulation seed, defaults to a random value per run
       --box1-ip <ip>               Submit through cluster_cli.sh using box 1
       --box2-ip <ip>               Submit through cluster_cli.sh using box 2
@@ -83,6 +85,7 @@ while [ "$#" -gt 0 ]; do
     --max-region-population) MAX_REGION_POPULATION="$2"; shift 2 ;;
     --migration-rate) MIGRATION_RATE="$2"; shift 2 ;;
     --mutation-rate) MUTATION_RATE="$2"; shift 2 ;;
+    --tick-delay-ms) TICK_DELAY_MS="$2"; shift 2 ;;
     --seed) SEED="$2"; shift 2 ;;
     --box1-ip) BOX1_IP="$2"; shift 2 ;;
     --box2-ip) BOX2_IP="$2"; shift 2 ;;
@@ -253,8 +256,16 @@ BUNDLE_ARGS=(
   --mutation-rate "$MUTATION_RATE"
 )
 
+if [ -z "$TICK_DELAY_MS" ] && [ "$WATCH" = "1" ]; then
+  TICK_DELAY_MS="120"
+fi
+
 if [ -n "$SEED" ]; then
   BUNDLE_ARGS+=(--seed "$SEED")
+fi
+
+if [ -n "$TICK_DELAY_MS" ]; then
+  BUNDLE_ARGS+=(--tick-delay-ms "$TICK_DELAY_MS")
 fi
 
 if [ "$DRY_RUN" = "1" ] || [ -n "$SELF_IP" ]; then
@@ -501,3 +512,5 @@ echo "Result written to:"
 echo "  $RESULT_PATH"
 echo "Summary:"
 python3 "$SCRIPT_DIR/summarize_result.py" "$RESULT_PATH"
+echo ""
+python3 "$SCRIPT_DIR/summarize_result.py" "$RESULT_PATH" --chart-only

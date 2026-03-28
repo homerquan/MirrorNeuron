@@ -141,7 +141,13 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
       migrants_in: 0,
       migrants_out: 0,
       next_serial: length(animals),
-      history: []
+      history: [],
+      population_series: [
+        %{
+          tick: 0,
+          population: length(animals)
+        }
+      ]
     }
   end
 
@@ -171,6 +177,15 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
           births: births,
           deaths: dead
         })
+      end)
+      |> Map.update!(:population_series, fn series ->
+        series ++
+          [
+            %{
+              tick: tick,
+              population: length(state.animals)
+            }
+          ]
       end)
 
     {state, arrivals, births, dead, migration_payloads, outgoing}
@@ -290,6 +305,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
         end),
       region_nodes:
         Enum.into(region_summaries, %{}, fn summary -> {summary.region_id, summary.assigned_node} end),
+      population_timeline: aggregate_population_timeline(region_summaries),
       top_10_dna: ranked
     }
   end
@@ -307,6 +323,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
       max_region_population: int_config(node.config, "max_region_population", 220),
       migration_rate: float_config(node.config, "migration_rate", 0.035),
       mutation_rate: float_config(node.config, "mutation_rate", 0.05),
+      tick_delay_ms: int_config(node.config, "tick_delay_ms", 0),
       seed: int_config(node.config, "seed", 42),
       local_top_k: int_config(node.config, "local_top_k", 20),
       region_index: int_config(node.config, "region_index", 0)
@@ -545,6 +562,23 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
     history
     |> Kernel.++([entry])
     |> Enum.take(-limit)
+  end
+
+  defp aggregate_population_timeline(region_summaries) do
+    region_summaries
+    |> Enum.flat_map(fn summary ->
+      Enum.map(summary.population_series, fn entry ->
+        %{tick: entry.tick, population: entry.population}
+      end)
+    end)
+    |> Enum.group_by(& &1.tick)
+    |> Enum.map(fn {tick, entries} ->
+      %{
+        tick: tick,
+        population: Enum.sum(Enum.map(entries, & &1.population))
+      }
+    end)
+    |> Enum.sort_by(& &1.tick)
   end
 
   defp rand_between(seed, index, salt, low, high) do

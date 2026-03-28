@@ -106,6 +106,10 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.RegionAgent do
   defp run_tick(state, incoming) do
     tick = Map.get(incoming, "tick", state.tick + 1) |> trunc()
 
+    if state.config.tick_delay_ms > 0 do
+      Process.sleep(state.config.tick_delay_ms)
+    end
+
     {next_state, arrivals, births, deaths, migration_payloads, outgoing} =
       Core.process_tick(state, state.config, tick)
 
@@ -152,6 +156,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.RegionAgent do
         migrants_in: next_state.migrants_in,
         migrants_out: next_state.migrants_out,
         history_tail: Enum.take(next_state.history, -10),
+        population_series: next_state.population_series,
         resource_profile: next_state.resource_profile,
         top_lineages:
           next_state.animals

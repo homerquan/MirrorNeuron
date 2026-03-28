@@ -154,6 +154,19 @@ bash examples/ecosystem_simulation/run_simulation_e2e.sh \
 
 The local runner rebuilds `./mirror_neuron`, generates the bundle, validates it, runs the simulation, and writes a `result.json` next to the generated manifest.
 
+For a more watchable run, use:
+
+```bash
+bash examples/ecosystem_simulation/run_simulation_e2e.sh \
+  --animals 800 \
+  --regions 8 \
+  --duration-seconds 300 \
+  --tick-seconds 5 \
+  --watch
+```
+
+When `--watch` is enabled, the runner applies a small real wall-clock delay per tick by default so the ASCII dashboard has time to show the world evolving. You can override that with `--tick-delay-ms`.
+
 ## ASCII dashboard
 
 There is also a terminal-only watcher for this example:
@@ -253,6 +266,7 @@ The final result includes:
 - surviving population
 - births and deaths
 - migration counts
+- an ASCII world population chart across the full run
 - per-region resource profiles
 - short region history tails
 - top 10 DNA profiles
