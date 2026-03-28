@@ -154,6 +154,47 @@ bash examples/ecosystem_simulation/run_simulation_e2e.sh \
 
 The local runner rebuilds `./mirror_neuron`, generates the bundle, validates it, runs the simulation, and writes a `result.json` next to the generated manifest.
 
+## ASCII dashboard
+
+There is also a terminal-only watcher for this example:
+
+- [watch_ascii.exs](../examples/ecosystem_simulation/watch_ascii.exs)
+
+It renders:
+
+- job status and tick progress
+- per-region population and food bars
+- a rolling DNA leaderboard
+- recent events
+
+Example on a long-lived local runtime:
+
+Terminal 1:
+
+```bash
+cd MirrorNeuron
+./mirror_neuron server
+```
+
+Terminal 2:
+
+```bash
+python3 examples/ecosystem_simulation/generate_bundle.py --animals 800 --regions 8
+./mirror_neuron run examples/ecosystem_simulation/generated/ecosystem_simulation_800_animals_8_regions_300s --json --no-await
+```
+
+Terminal 3:
+
+```bash
+mix run examples/ecosystem_simulation/watch_ascii.exs -- <job_id>
+```
+
+You can also inspect a completed run once:
+
+```bash
+mix run examples/ecosystem_simulation/watch_ascii.exs -- <job_id> --once --no-clear
+```
+
 ## Two-box cluster run
 
 From box 1:
@@ -188,6 +229,21 @@ The cluster harness:
 - prints the final summary
 - stops the runtime nodes afterward
 
+To keep the cluster up and watch it live:
+
+```bash
+bash scripts/test_cluster_ecosystem_sim_e2e.sh \
+  --box1-ip 192.168.4.29 \
+  --box2-ip 192.168.4.35 \
+  --keep-cluster-up
+```
+
+Then in another terminal on box 1:
+
+```bash
+mix run examples/ecosystem_simulation/watch_ascii.exs -- <job_id> --box1-ip 192.168.4.29
+```
+
 ## Output
 
 The final result includes:
@@ -211,8 +267,9 @@ That makes it useful both as:
 - [generate_bundle.py](../examples/ecosystem_simulation/generate_bundle.py)
 - [run_simulation_e2e.sh](../examples/ecosystem_simulation/run_simulation_e2e.sh)
 - [summarize_result.py](../examples/ecosystem_simulation/summarize_result.py)
-- [world_agent.ex](../lib/mirror_neuron/examples/ecosystem_simulation/world_agent.ex)
-- [region_agent.ex](../lib/mirror_neuron/examples/ecosystem_simulation/region_agent.ex)
-- [leaderboard_agent.ex](../lib/mirror_neuron/examples/ecosystem_simulation/leaderboard_agent.ex)
-- [core.ex](../lib/mirror_neuron/examples/ecosystem_simulation/core.ex)
+- [watch_ascii.exs](../examples/ecosystem_simulation/watch_ascii.exs)
+- [world_agent.ex](../examples/ecosystem_simulation/payloads/beam_modules/world_agent.ex)
+- [region_agent.ex](../examples/ecosystem_simulation/payloads/beam_modules/region_agent.ex)
+- [leaderboard_agent.ex](../examples/ecosystem_simulation/payloads/beam_modules/leaderboard_agent.ex)
+- [core.ex](../examples/ecosystem_simulation/payloads/beam_modules/core.ex)
 - [test_cluster_ecosystem_sim_e2e.sh](../scripts/test_cluster_ecosystem_sim_e2e.sh)

@@ -55,6 +55,8 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
     recovery_snapshot = recovery_snapshot || load_recovery_snapshot(job_id, node.node_id)
     module = AgentRegistry.fetch!(node.agent_type)
 
+    node = inject_runtime_paths(node, runtime_context)
+
     case initialize_local_state(module, node, recovery_snapshot) do
       {:ok, local_state} ->
         pending_messages = recovered_replay_messages(recovery_snapshot)
@@ -356,6 +358,16 @@ defmodule MirrorNeuron.Runtime.AgentWorker do
   end
 
   defp initialize_local_state(module, node, _snapshot), do: module.init(node)
+
+  defp inject_runtime_paths(node, runtime_context) do
+    runtime_config =
+      node.config
+      |> Map.put("__bundle_root", runtime_context[:bundle_root])
+      |> Map.put("__manifest_path", runtime_context[:manifest_path])
+      |> Map.put("__payloads_path", runtime_context[:payloads_path])
+
+    %{node | config: runtime_config}
+  end
 
   defp maybe_recover_actions(%{recovered_snapshot: nil} = state), do: {:ok, state}
 

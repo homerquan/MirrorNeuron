@@ -35,6 +35,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.RegionAgent do
     case type(message) do
       "region_bootstrap" ->
         bootstrap = atomize(payload(message) || %{})
+
         next_state =
           Core.init_region_state(state.region_id, bootstrap)
           |> Map.put(:config, state.config)

@@ -38,6 +38,7 @@ def build_manifest(args: argparse.Namespace) -> dict:
             "config": {
                 **shared_config,
                 "module": "MirrorNeuron.Examples.EcosystemSimulation.WorldAgent",
+                "module_source": "beam_modules/world_agent.ex",
             },
         },
         {
@@ -55,6 +56,7 @@ def build_manifest(args: argparse.Namespace) -> dict:
             "type": "reduce",
             "config": {
                 "module": "MirrorNeuron.Examples.EcosystemSimulation.LeaderboardAgent",
+                "module_source": "beam_modules/leaderboard_agent.ex",
             },
         },
     ]
@@ -73,6 +75,7 @@ def build_manifest(args: argparse.Namespace) -> dict:
                 "config": {
                     **shared_config,
                     "module": "MirrorNeuron.Examples.EcosystemSimulation.RegionAgent",
+                    "module_source": "beam_modules/region_agent.ex",
                     "region_index": index,
                 },
             }
@@ -185,7 +188,9 @@ def main() -> None:
     bundle_dir.mkdir(parents=True, exist_ok=True)
     payloads_dir = bundle_dir / "payloads"
     payloads_dir.mkdir(parents=True, exist_ok=True)
-    (payloads_dir / ".keep").write_text("")
+    beam_modules_src = root / "payloads" / "beam_modules"
+    beam_modules_dest = payloads_dir / "beam_modules"
+    shutil.copytree(beam_modules_src, beam_modules_dest)
 
     manifest = build_manifest(args)
     (bundle_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")

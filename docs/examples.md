@@ -156,6 +156,7 @@ Key files:
 - [generate_bundle.py](../examples/ecosystem_simulation/generate_bundle.py)
 - [run_simulation_e2e.sh](../examples/ecosystem_simulation/run_simulation_e2e.sh)
 - [summarize_result.py](../examples/ecosystem_simulation/summarize_result.py)
+- [watch_ascii.exs](../examples/ecosystem_simulation/watch_ascii.exs)
 - [Simulation Example Guide](simulation_example.md)
 
 Run locally:

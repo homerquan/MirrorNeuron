@@ -65,21 +65,69 @@ defmodule MirrorNeuron.Builtins.Module do
         {:error, "module agent requires config.module"}
 
       module when is_atom(module) ->
-        {:ok, module}
+        ensure_module_loaded(module, config)
 
       module_name when is_binary(module_name) ->
         try do
-          {:ok,
-           module_name
-           |> String.split(".", trim: true)
-           |> Enum.map(&String.to_atom/1)
-           |> Module.concat()}
+          module =
+            module_name
+            |> String.split(".", trim: true)
+            |> Enum.map(&String.to_atom/1)
+            |> Module.concat()
+
+          ensure_module_loaded(module, config)
         rescue
           _ -> {:error, "invalid module agent #{inspect(module_name)}"}
         end
 
       other ->
         {:error, "invalid module agent #{inspect(other)}"}
+    end
+  end
+
+  defp ensure_module_loaded(module, config) do
+    if Code.ensure_loaded?(module) do
+      {:ok, module}
+    else
+      with :ok <- maybe_compile_module_sources(config),
+           true <- Code.ensure_loaded?(module) do
+        {:ok, module}
+      else
+        false ->
+          {:error, "module agent #{inspect(module)} is not available"}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  defp maybe_compile_module_sources(config) do
+    case Map.get(config, "module_source") || Map.get(config, :module_source) do
+      nil ->
+        :ok
+
+      source ->
+        payloads_path = Map.get(config, "__payloads_path") || Map.get(config, :__payloads_path)
+
+        if is_nil(payloads_path) do
+          {:error, "module_source requires payloads path in runtime context"}
+        else
+          source_path = Path.expand(source, payloads_path)
+          source_dir = Path.dirname(source_path)
+
+          if File.exists?(source_path) do
+            source_dir
+            |> Path.join("*.ex")
+            |> Path.wildcard()
+            |> Enum.sort()
+            |> Enum.each(&Code.compile_file/1)
+
+            :ok
+          else
+            {:error, "module source does not exist: #{source_path}"}
+          end
+        end
     end
   end
 end

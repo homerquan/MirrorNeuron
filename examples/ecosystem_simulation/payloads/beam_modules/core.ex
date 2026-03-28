@@ -212,11 +212,17 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
       tick: state.tick,
       population: length(state.animals),
       food: round2(state.food),
+      food_capacity: round2(state.food_capacity),
       births: state.births,
       deaths: state.deaths,
       migrants_in: state.migrants_in,
       migrants_out: state.migrants_out,
-      resource_band: get_in(state, [:resource_profile, :band]) || "uninitialized"
+      resource_band: get_in(state, [:resource_profile, :band]) || "uninitialized",
+      top_lineages_preview:
+        state.animals
+        |> lineage_snapshot()
+        |> Enum.sort_by(fn lineage -> {-lineage.alive, -lineage.generation_max, -lineage.avg_energy} end)
+        |> Enum.take(3)
     }
   end
 
@@ -429,6 +435,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
     else
       seed = state.region_seed + next_serial * 131 + tick * 977
       child_dna = mix_dna(parent_a.dna, parent_b.dna, seed, state.mutation_rate)
+
       child =
         create_animal(
           state.region_id,
@@ -511,21 +518,12 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.Core do
     low + (high - low) * unit
   end
 
+  defp trait_seed(trait), do: :erlang.phash2(trait)
+
   defp int_config(config, key, default), do: config |> Map.get(key, default) |> trunc()
   defp float_config(config, key, default), do: config |> Map.get(key, default) |> Kernel.*(1.0)
 
   defp format_trait(value), do: :erlang.float_to_binary(value * 1.0, decimals: 2)
 
   defp jitter(seed, key, salt, low, high), do: rand_between(seed, :erlang.phash2(key), salt, low, high)
-
-  defp trait_seed(trait) do
-    case trait do
-      :metabolism -> 11
-      :forage -> 13
-      :breed -> 17
-      :aggression -> 19
-      :move -> 23
-      :longevity -> 29
-    end
-  end
 end
