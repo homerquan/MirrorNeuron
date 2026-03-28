@@ -501,17 +501,39 @@ bash "$ROOT_DIR/scripts/cluster_cli.sh" \
   -- validate "$BUNDLE_PATH" >/dev/null
 
 echo "Submitting prime job through cluster CLI..."
-SUBMIT_JSON="$(
-  bash "$ROOT_DIR/scripts/cluster_cli.sh" \
-    --box1-ip "$BOX1_IP" \
-    --box2-ip "$BOX2_IP" \
-    --self-ip "$BOX1_IP" \
-    -- run "$BUNDLE_PATH" --json --no-await
-)"
+SUBMIT_JSON_FILE="$(mktemp /tmp/mirror_neuron_prime_failover_submit.XXXXXX.json)"
+trap 'rm -f "$SUBMIT_JSON_FILE"; cleanup_all' EXIT
+
+bash "$ROOT_DIR/scripts/cluster_cli.sh" \
+  --box1-ip "$BOX1_IP" \
+  --box2-ip "$BOX2_IP" \
+  --self-ip "$BOX1_IP" \
+  -- run "$BUNDLE_PATH" --json --no-await >"$SUBMIT_JSON_FILE"
 
 JOB_ID="$(
-  printf '%s\n' "$SUBMIT_JSON" \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)["job_id"])'
+  python3 - "$SUBMIT_JSON_FILE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+raw = Path(sys.argv[1]).read_text()
+decoder = json.JSONDecoder()
+
+for index, char in enumerate(raw):
+    if char != "{":
+        continue
+
+    try:
+        payload, _ = decoder.raw_decode(raw[index:])
+    except json.JSONDecodeError:
+        continue
+
+    if isinstance(payload, dict) and "job_id" in payload:
+        print(payload["job_id"])
+        break
+else:
+    raise SystemExit("could not decode cluster submit JSON")
+PY
 )"
 
 echo "Submitted job:"
