@@ -49,6 +49,7 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.RegionAgent do
               "region_id" => next_state.region_id,
               "population" => length(next_state.animals),
               "food" => Core.round2(next_state.food),
+              "food_capacity" => Core.round2(next_state.food_capacity),
               "resource_band" => next_state.resource_profile.band
             }},
            {:emit_to, next_state.region_id, "region_tick", %{"tick" => 1},

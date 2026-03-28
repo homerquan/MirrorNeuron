@@ -1,4 +1,7 @@
 defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
+  alias MirrorNeuron.CLI.UI
+  alias Owl.Data
+
   def main(argv) do
     argv =
       case argv do
@@ -60,10 +63,24 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     end
 
     {:ok, _} = Application.ensure_all_started(:mirror_neuron)
-    render_loop(job_id, interval_ms, frames, once?, clear?, 1)
+    {:ok, _} = Application.ensure_all_started(:owl)
+
+    live_screen? = UI.interactive?() and clear? and not once? and Process.whereis(Owl.LiveScreen)
+
+    if live_screen? do
+      Owl.LiveScreen.add_block(:ecosystem_watch,
+        state: nil,
+        render: fn
+          nil -> UI.box("Loading", ["Preparing ecosystem dashboard..."], border_tag: :cyan)
+          state -> render_dashboard(state)
+        end
+      )
+    end
+
+    render_loop(job_id, interval_ms, frames, once?, clear?, 1, live_screen?)
   end
 
-  defp render_loop(job_id, interval_ms, frames, once?, clear?, frame) do
+  defp render_loop(job_id, interval_ms, frames, once?, clear?, frame, live_screen?) do
     job =
       case MirrorNeuron.inspect_job(job_id) do
         {:ok, value} -> value
@@ -106,11 +123,21 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
       if final_fallback? and (job["status"] || "") in ["completed", "failed", "cancelled"] do
         final_region_rows(job)
       else
-        live_region_rows
+        bootstrap_rows = bootstrap_region_rows(agents, events)
+
+        Enum.map(live_region_rows, fn row ->
+          if row.tick == 0 and row.population == 0 and row.band == "unknown" do
+            Enum.find(bootstrap_rows, row, &(&1.id == row.id))
+          else
+            row
+          end
+        end)
       end
 
     max_tick = Enum.max([0 | Enum.map(region_rows, & &1.tick)])
     total_ticks = calc_total_ticks(world_config)
+    simulated_time = calc_simulated_time(max_tick, world_config)
+    total_simulated_time = calc_total_simulated_time(world_config)
     total_population = Enum.sum(Enum.map(region_rows, & &1.population))
     total_food = Enum.sum(Enum.map(region_rows, & &1.food))
     total_births = Enum.sum(Enum.map(region_rows, & &1.births))
@@ -126,80 +153,209 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
       end
     recent_events = recent_events(events)
 
-    if clear?, do: IO.write(IO.ANSI.home() <> IO.ANSI.clear())
+    render_state = %{
+      job_id: job_id,
+      status: job["status"] || "unknown",
+      max_tick: max_tick,
+      total_ticks: total_ticks,
+      simulated_time: simulated_time,
+      total_simulated_time: total_simulated_time,
+      region_rows: region_rows,
+      active_nodes: active_nodes,
+      total_population: total_population,
+      total_food: total_food,
+      total_births: total_births,
+      total_deaths: total_deaths,
+      total_migrants_in: total_migrants_in,
+      total_migrants_out: total_migrants_out,
+      seed: world_state["seed"],
+      leaderboard: leaderboard,
+      recent_events: recent_events
+    }
 
-    IO.puts("MirrorNeuron Ecosystem Simulation ASCII Dashboard")
-    IO.puts(String.duplicate("=", 76))
-
-    IO.puts(
-      "job=#{job_id} | status=#{job["status"] || "unknown"} | tick=#{max_tick}/#{total_ticks || "?"} | " <>
-        "regions=#{length(region_rows)} | nodes=#{Enum.join(active_nodes, ",")}"
-    )
-
-    IO.puts(
-      "population=#{total_population} | food=#{fmt(total_food)} | births=#{total_births} | deaths=#{total_deaths} | " <>
-        "migrants=#{total_migrants_in}/#{total_migrants_out}"
-    )
-
-    if seed = world_state["seed"] do
-      IO.puts("seed=#{seed}")
+    if live_screen? do
+      Owl.LiveScreen.update(:ecosystem_watch, render_state)
+      Owl.LiveScreen.await_render()
+    else
+      if clear?, do: IO.write(IO.ANSI.home() <> IO.ANSI.clear())
+      UI.puts(render_dashboard(render_state))
     end
-
-    IO.puts("")
-    IO.puts("Regions")
-    IO.puts("------")
-    IO.puts("ID         BOX   TICK  POP   FOOD                LEVEL        TREND BIRTH  DEATH  IN   OUT  BAND")
-
-    Enum.each(region_rows, fn row ->
-      food_ratio = row.food / row.food_capacity
-
-      IO.puts(
-        "#{pad(row.id, 10)} #{pad(row.node, 5)} #{pad(row.tick, 5)} #{pad(row.population, 5)} " <>
-          "#{bar(food_ratio, 18)} #{pad(food_level(row), 12)} #{pad(food_trend(row), 5)} " <>
-          "#{pad(row.births, 6)} #{pad(row.deaths, 6)} " <>
-          "#{pad(row.migrants_in, 4)} #{pad(row.migrants_out, 4)}  #{row.band}"
-      )
-    end)
-
-    IO.puts("")
-    IO.puts("Top DNA")
-    IO.puts("-------")
-    IO.puts("RANK DNA KEY                              ALIVE  AVG_E  GEN  REGIONS")
-
-    leaderboard
-    |> Enum.with_index(1)
-    |> Enum.each(fn {entry, index} ->
-      dna_key = entry[:dna_key] || entry["dna_key"] || "unknown"
-      alive = entry[:alive] || entry["alive"] || 0
-      avg_energy = entry[:avg_energy] || entry["avg_energy"] || 0.0
-      generation_max = entry[:generation_max] || entry["generation_max"] || 0
-      regions_present = entry[:regions_present] || entry["regions_present"] || 0
-
-      IO.puts(
-        "#{pad(index, 4)} #{pad(truncate_key(dna_key), 36)} #{pad(alive, 6)} " <>
-          "#{pad(fmt(avg_energy), 6)} #{pad(generation_max, 4)}  #{format_regions_present(regions_present)}"
-      )
-    end)
-
-    IO.puts("")
-    IO.puts("Recent Events")
-    IO.puts("-------------")
-
-    Enum.each(recent_events, fn event ->
-      IO.puts(
-        "#{pad(event["type"] || "unknown", 24)} #{inspect(event["agent_id"] || "-", limit: 4)} " <>
-          "#{summarize_payload(event["payload"] || %{})}"
-      )
-    end)
 
     terminal? = (job["status"] || "") in ["completed", "failed", "cancelled"]
     done? = once? or terminal? or (is_integer(frames) and frame >= frames)
 
     unless done? do
       Process.sleep(interval_ms)
-      render_loop(job_id, interval_ms, frames, once?, clear?, frame + 1)
+      render_loop(job_id, interval_ms, frames, once?, clear?, frame + 1, live_screen?)
+    else
+      if live_screen?, do: Owl.LiveScreen.flush()
     end
   end
+
+  defp render_dashboard(state) do
+    [
+      UI.box(
+        "Ecosystem Simulation",
+        [
+          status_line("Job", state.job_id),
+          "\n",
+          status_line("Status", state.status),
+          "\n",
+          status_line("Tick", "#{state.max_tick}/#{state.total_ticks || "?"}"),
+          "\n",
+          status_line(
+            "Sim Time",
+            "#{format_sim_time(state.simulated_time)}/#{format_sim_time(state.total_simulated_time)}"
+          ),
+          "\n",
+          status_line("Regions", Integer.to_string(length(state.region_rows))),
+          "\n",
+          status_line("Nodes", Enum.join(state.active_nodes, ",")),
+          maybe_seed_line(state.seed)
+        ],
+        border_tag: :cyan
+      ),
+      "\n",
+      UI.box(
+        "World Summary",
+        [
+          status_line("Population", Integer.to_string(state.total_population)),
+          "\n",
+          status_line("Food", fmt(state.total_food)),
+          "\n",
+          status_line("Births", Integer.to_string(state.total_births)),
+          "\n",
+          status_line("Deaths", Integer.to_string(state.total_deaths)),
+          "\n",
+          status_line("Migrants", "#{state.total_migrants_in}/#{state.total_migrants_out}")
+        ],
+        border_tag: :green,
+        title_tag: :green
+      ),
+      "\n",
+      UI.box("Regions", region_table(state.region_rows), border_tag: :yellow, title_tag: :yellow),
+      "\n",
+      UI.box("Top DNA", dna_table(state.leaderboard), border_tag: :magenta, title_tag: :magenta),
+      "\n",
+      UI.box("Recent Events", event_lines(state.recent_events), border_tag: :light_black, title_tag: :light_black)
+    ]
+  end
+
+  defp region_table(region_rows) do
+    rows =
+      Enum.map(region_rows, fn row ->
+        food_ratio = row.food / row.food_capacity
+
+        [
+          pad(row.id, 10),
+          pad(row.node, 5),
+          pad(row.tick, 5),
+          pad(row.population, 5),
+          bar(food_ratio, 18),
+          pad(food_level(row), 12),
+          pad(food_trend(row), 5),
+          pad(row.births, 6),
+          pad(row.deaths, 6),
+          pad(row.migrants_in, 4),
+          pad(row.migrants_out, 4),
+          row.band
+        ]
+      end)
+
+    table(
+      ["ID", "BOX", "TICK", "POP", "FOOD", "LEVEL", "TREND", "BIRTH", "DEATH", "IN", "OUT", "BAND"],
+      rows
+    )
+  end
+
+  defp dna_table(leaderboard) do
+    rows =
+      leaderboard
+      |> Enum.with_index(1)
+      |> Enum.map(fn {entry, index} ->
+        dna_key = entry[:dna_key] || entry["dna_key"] || "unknown"
+        alive = entry[:alive] || entry["alive"] || 0
+        avg_energy = entry[:avg_energy] || entry["avg_energy"] || 0.0
+        generation_max = entry[:generation_max] || entry["generation_max"] || 0
+        regions_present = entry[:regions_present] || entry["regions_present"] || 0
+
+        [
+          pad(index, 4),
+          pad(truncate_key(dna_key), 36),
+          pad(alive, 6),
+          pad(fmt(avg_energy), 6),
+          pad(generation_max, 4),
+          format_regions_present(regions_present)
+        ]
+      end)
+
+    table(["RANK", "DNA KEY", "ALIVE", "AVG_E", "GEN", "REGIONS"], rows)
+  end
+
+  defp event_lines([]), do: "No recent events."
+
+  defp event_lines(events) do
+    events
+    |> Enum.map(fn event ->
+      [
+        Data.tag(pad(event["type"] || "unknown", 24), :cyan),
+        " ",
+        pad(inspect(event["agent_id"] || "-", limit: 4), 16),
+        " ",
+        summarize_payload(event["payload"] || %{})
+      ]
+    end)
+    |> Enum.intersperse("\n")
+  end
+
+  defp table(headers, rows) do
+    widths =
+      headers
+      |> Enum.with_index()
+      |> Enum.map(fn {header, index} ->
+        max(
+          String.length(header),
+          rows
+          |> Enum.map(&(Enum.at(&1, index) || ""))
+          |> Enum.map(&String.length/1)
+          |> Enum.max(fn -> 0 end)
+        )
+      end)
+
+    header_line =
+      headers
+      |> Enum.with_index()
+      |> Enum.map(fn {header, index} ->
+        header
+        |> String.pad_trailing(Enum.at(widths, index))
+        |> Data.tag(:cyan)
+      end)
+      |> Enum.intersperse("  ")
+
+    separator =
+      widths
+      |> Enum.map(&String.duplicate("-", &1))
+      |> Enum.intersperse("  ")
+
+    body_lines =
+      rows
+      |> Enum.map(fn row ->
+        row
+        |> Enum.with_index()
+        |> Enum.map(fn {value, index} -> String.pad_trailing(value, Enum.at(widths, index)) end)
+        |> Enum.intersperse("  ")
+      end)
+      |> Enum.intersperse("\n")
+
+    [header_line, "\n", separator, "\n", body_lines]
+  end
+
+  defp status_line(label, value) do
+    [Data.tag(String.pad_trailing(label <> ":", 12), :yellow), " ", to_string(value)]
+  end
+
+  defp maybe_seed_line(nil), do: []
+  defp maybe_seed_line(seed), do: ["\n", status_line("Seed", seed)]
 
   defp region_row(agent) do
     state = extract_agent_state(agent)
@@ -221,6 +377,46 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
     }
   end
 
+  defp bootstrap_region_rows(agents, events) do
+    initialized =
+      events
+      |> Enum.filter(fn event -> (event["type"] || "") == "region_initialized" end)
+      |> Enum.reduce(%{}, fn event, acc ->
+        payload = event["payload"] || %{}
+        region_id = payload["region_id"] || event["agent_id"]
+
+        if is_binary(region_id) do
+          Map.put(acc, region_id, payload)
+        else
+          acc
+        end
+      end)
+
+    agents
+    |> Enum.filter(fn agent -> String.starts_with?(agent["agent_id"] || "", "region_") end)
+    |> Enum.sort_by(&(&1["agent_id"] || ""))
+    |> Enum.map(fn agent ->
+      region_id = agent["agent_id"] || "unknown"
+      payload = Map.get(initialized, region_id, %{})
+
+      %{
+        id: region_id,
+        node: short_node(agent["assigned_node"]),
+        tick: 0,
+        population: payload["population"] || 0,
+        food: as_float(payload["food"]),
+        food_capacity: max(as_float(payload["food_capacity"]), 1.0),
+        births: 0,
+        deaths: 0,
+        migrants_in: 0,
+        migrants_out: 0,
+        band: payload["resource_band"] || "bootstrapping",
+        history_tail: [],
+        top_lineages: []
+      }
+    end)
+  end
+
   defp calc_total_ticks(config) when is_map(config) do
     duration = int_value(config["duration_seconds"])
     tick = max(int_value(config["tick_seconds"]), 1)
@@ -228,6 +424,15 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
   end
 
   defp calc_total_ticks(_), do: nil
+
+  defp calc_simulated_time(tick, config) when is_map(config) do
+    tick * max(int_value(config["tick_seconds"]), 1)
+  end
+
+  defp calc_simulated_time(_tick, _config), do: 0
+
+  defp calc_total_simulated_time(config) when is_map(config), do: int_value(config["duration_seconds"])
+  defp calc_total_simulated_time(_config), do: 0
 
   defp aggregate_lineages(region_rows) do
     region_rows
@@ -319,6 +524,12 @@ defmodule MirrorNeuron.Examples.EcosystemSimulation.WatchASCII do
 
   defp format_regions_present(value) when is_list(value), do: Enum.join(value, ",")
   defp format_regions_present(value), do: to_string(value)
+
+  defp format_sim_time(total_seconds) when is_integer(total_seconds) and total_seconds > 0 do
+    "#{total_seconds}y"
+  end
+
+  defp format_sim_time(_), do: "?"
 
   defp short_node(nil), do: "-"
 
