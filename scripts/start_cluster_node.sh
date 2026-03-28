@@ -12,6 +12,7 @@ EXECUTOR_CAPACITY="${MIRROR_NEURON_EXECUTOR_MAX_CONCURRENCY:-2}"
 DIST_PORT="${MIRROR_NEURON_DIST_PORT:-4370}"
 START_OPENSHELL="1"
 RECREATE_OPENSHELL="0"
+RESTART_RUNTIME="0"
 
 usage() {
   cat <<EOF
@@ -33,6 +34,7 @@ options:
       --dist-port <port>         Erlang distribution port, defaults to 4370
       --skip-openshell           Do not start openshell gateway automatically
       --recreate-openshell       Force destroy/recreate of the openshell gateway
+      --restart-runtime          Stop an existing local MirrorNeuron runtime on this port before starting
   -h, --help                     Show this help
 EOF
 }
@@ -86,6 +88,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --recreate-openshell)
       RECREATE_OPENSHELL="1"
+      shift
+      ;;
+    --restart-runtime)
+      RESTART_RUNTIME="1"
       shift
       ;;
     -h|--help)
@@ -193,10 +199,47 @@ EOF
   fi
 }
 
+existing_runtime_pid() {
+  lsof -nP -iTCP:"$DIST_PORT" -sTCP:LISTEN 2>/dev/null \
+    | awk '/beam\.smp/ {print $2; exit}'
+}
+
+handle_existing_runtime() {
+  local existing_pid
+  existing_pid="$(existing_runtime_pid)"
+
+  if [ -z "$existing_pid" ]; then
+    return
+  fi
+
+  if [ "$RESTART_RUNTIME" = "1" ]; then
+    echo "Stopping existing MirrorNeuron runtime on port $DIST_PORT (pid $existing_pid)..."
+    kill "$existing_pid"
+    sleep 1
+    return
+  fi
+
+  cat <<EOF
+MirrorNeuron runtime already appears to be running locally.
+
+  node: $MIRROR_NEURON_NODE_NAME
+  port: $DIST_PORT
+  pid:  $existing_pid
+
+If you want to keep using that node, leave it running and open a new terminal for:
+  bash scripts/cluster_cli.sh --box1-ip $BOX1_IP --box2-ip $BOX2_IP --self-ip $SELF_IP -- inspect nodes
+
+If you want to replace it, rerun with:
+  bash scripts/start_cluster_node.sh --box1-ip $BOX1_IP --box2-ip $BOX2_IP --box $BOX_INDEX --restart-runtime
+EOF
+  exit 0
+}
+
 if [ "$START_OPENSHELL" = "1" ]; then
   ensure_openshell_gateway
 fi
 
 ensure_epmd
+handle_existing_runtime
 
 exec "$ROOT_DIR/mirror_neuron" server
