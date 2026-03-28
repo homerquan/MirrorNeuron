@@ -9,6 +9,7 @@ COOKIE="${MIRROR_NEURON_COOKIE:-mirrorneuron}"
 REDIS_HOST=""
 REDIS_PORT="${MIRROR_NEURON_REDIS_PORT:-6379}"
 CLI_PORT="${MIRROR_NEURON_CLI_DIST_PORT:-4371}"
+SEED_IP=""
 
 usage() {
   cat <<EOF
@@ -23,6 +24,7 @@ options:
       --box1-ip <ip>           IP of box 1
       --box2-ip <ip>           IP of box 2
       --self-ip <ip>           IP of this machine for the temporary CLI node
+      --seed-ip <ip>           Runtime node IP to use as the control-plane seed, defaults to self IP
       --redis-host <host>      Redis host, defaults to box1 IP
       --redis-port <port>      Redis port, defaults to 6379
       --cookie <cookie>        Erlang cookie, defaults to mirrorneuron
@@ -52,6 +54,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --self-ip)
       SELF_IP="$2"
+      shift 2
+      ;;
+    --seed-ip)
+      SEED_IP="$2"
       shift 2
       ;;
     --redis-host)
@@ -100,6 +106,19 @@ if [ -z "$REDIS_HOST" ]; then
   REDIS_HOST="$BOX1_IP"
 fi
 
+if [ -z "$SEED_IP" ]; then
+  SEED_IP="$SELF_IP"
+fi
+
+if [ "$SEED_IP" = "$BOX1_IP" ]; then
+  SEED_NODE="mn1@${BOX1_IP}"
+elif [ "$SEED_IP" = "$BOX2_IP" ]; then
+  SEED_NODE="mn2@${BOX2_IP}"
+else
+  echo "--seed-ip must match either --box1-ip or --box2-ip" >&2
+  exit 1
+fi
+
 epmd -daemon
 
 find_free_port() {
@@ -114,17 +133,17 @@ find_free_port() {
 
 CLI_PORT="$(find_free_port "$CLI_PORT")"
 
-export ERL_AFLAGS="-kernel inet_dist_listen_min ${CLI_PORT} inet_dist_listen_max ${CLI_PORT}"
+export ERL_AFLAGS="-connect_all false -kernel inet_dist_listen_min ${CLI_PORT} inet_dist_listen_max ${CLI_PORT}"
 export MIRROR_NEURON_NODE_NAME="cli-$(date +%s)-$$@${SELF_IP}"
 export MIRROR_NEURON_NODE_ROLE="control"
 export MIRROR_NEURON_COOKIE="$COOKIE"
-export MIRROR_NEURON_CLUSTER_NODES="mn1@${BOX1_IP},mn2@${BOX2_IP}"
+export MIRROR_NEURON_CLUSTER_NODES="$SEED_NODE"
 export MIRROR_NEURON_REDIS_URL="redis://${REDIS_HOST}:${REDIS_PORT}/0"
 
-echo "Running MirrorNeuron cluster CLI"
-echo "  node: $MIRROR_NEURON_NODE_NAME"
-echo "  cluster: $MIRROR_NEURON_CLUSTER_NODES"
-echo "  redis: $MIRROR_NEURON_REDIS_URL"
-echo "  cli dist port: $CLI_PORT"
+>&2 echo "Running MirrorNeuron cluster CLI"
+>&2 echo "  node: $MIRROR_NEURON_NODE_NAME"
+>&2 echo "  seed: $MIRROR_NEURON_CLUSTER_NODES"
+>&2 echo "  redis: $MIRROR_NEURON_REDIS_URL"
+>&2 echo "  cli dist port: $CLI_PORT"
 
 exec "$ROOT_DIR/mirror_neuron" "$@"
